@@ -1,0 +1,131 @@
+.dashboard {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    .title {
+        height: 50px;
+        line-height: 50px;
+        font-size: 30px;
+        border-bottom: 1px solid black;
+    }
+    .block {
+        box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2);
+        padding: 20px 30px 20px 30px;
+        background: #fff;
+        min-width: 260px;
+        display: flex;
+        border-radius: 5px;
+        .logo {
+            $size: 70px;
+            font-size: $size;
+            color: #0072c6;
+            display: flex;
+            align-items: center;
+            svg {
+                width: $size;
+                height: $size;
+            }
+            i {
+                transform: translateY(6px);
+            }
+        }
+        .info {
+            display: flex;
+            flex-flow: column;
+            padding-left: 20px;
+            .name {
+                color: $text-data-title;
+                font-size: 22px;
+            }
+        }
+        .aggregation {
+            color: $text-data-info;
+            display: flex;
+            flex-flow: column;
+        }
+    }
+    .content {
+        flex: 1;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        .device {
+            // flex: 1 1 300px;
+            margin-left: 300px;
+            .device-main {
+                &:hover {
+                    background: rgb(245, 245, 245);
+                }
+                .operation {
+                    margin-left: 20px;
+                    display: flex;
+                    align-items: center;
+                    cursor: pointer;
+                    &:hover {
+                        color: $text-data-info;
+                    }
+                    .expand {
+                        transition: all 0.8s ease;
+                        transform: rotate(360deg);
+                    }
+                    .rotate {
+                        transform: rotate(180deg);
+                    }
+                }
+            }
+            .device-expand {
+                background: rgb(245, 245, 245);
+            }
+            .device-more {
+                // max-height: 480px;
+                align-items: center;
+                overflow-y: auto;
+                display: flex;
+                flex-flow: column; // transition: $default-animation;
+                padding: 0 !important;
+                .block {
+                    min-height: 75px;
+                }
+                &>* {
+                    margin-top: 5px;
+                    height: 0;
+                    flex: 1 1 auto;
+                }
+            }
+        }
+        .line {
+            flex: 1;
+            border-bottom: 1px dotted rgba(0, 0, 0, 0);
+            box-shadow: 0 2px 2px 0px rgba(0, 0, 0, 0.9); // box-shadow: 0 3px 3px 0px rgba(0,114,198,0.9);
+        }
+        .iothub {
+            // flex: 1 1 300px;
+            margin-right: 300px;
+            .iothub-main {
+                border-bottom-left-radius: 0;
+                border-bottom-right-radius: 0;
+            }
+            .iothub-more {
+                border-top-left-radius: 0;
+                border-top-right-radius: 0;
+            }
+        }
+    }
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  // -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3); 
+  border-radius: 4px;
+  // background: gray;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: gray;
+  // -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.5); 
+}

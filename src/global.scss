@@ -1,0 +1,18 @@
+$default-animation: all 0.3s ease;
+$break-small: 500px;
+$text-blue: rgb(54, 166, 231);
+$text-gray: rgb(133, 144, 166);
+$text-data-title: rgba(0,0,0,0.87);
+$text-data-info: rgba(0,0,0,0.65);
+@mixin respond-to($media) {
+    @if $media==mobile {
+        @media only screen and (max-width: $break-small) {
+            @content;
+        }
+    }
+    @else if $media==desktop {
+        @media only screen and (min-width: $break-small + 1) {
+            @content;
+        }
+    }
+}
