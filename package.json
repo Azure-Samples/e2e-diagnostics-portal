@@ -1,0 +1,19 @@
+{
+  "name": "e2e-diagnostic-portal-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node api.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.18.2",
+    "express": "^4.16.2",
+    "cors": "^2.8.4",
+    "azure-iothub": "^1.2.3",
+    "memory-cache": "^0.2.0",
+    "azure-storage": "^2.7.0",
+    "express-queue": "0.0.10",
+    "babel-polyfill": "^6.26.0"
+  }
+}
