@@ -8,6 +8,7 @@ import PngIotHub from '../asset/iothub.png';
 import SvgExpand from '../asset/expand.svg';
 import SvgEndpoint from '../asset/endpoint.svg';
 import SvgCompress from '../asset/compress.svg';
+import { setInterval } from 'timers';
 
 class Dashboard extends Component {
   constructor(props) {
@@ -16,104 +17,164 @@ class Dashboard extends Component {
       expand: false,
       connectedDevices: undefined,
       registeredDevices: undefined,
-      records: [],
-      devices: [],
-      toggleDevices: [],
-      endpoints: [],
+      unmatchedMessageNumber: 0,
+      devices: new Map(),
+      toggleDevices: new Map(),
+      endpoints: new Map(),
       leftLineInAnimationProgress: 0,
       rightLineInAnimationProgress: 0,
     };
+    this.records = new Map();
+    this.initDate = null;
+    this.querySpanInSeconds = 3;
+    this.spanInMinutes = 5;
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
+    this.startOfTimestamp = new Date('2018-01-17T08:00:00Z');
+  }
+
+  refresh = (firstCall, callback) => {
+    let end = (new Date() - this.initDate) / 1000;
+    let start = firstCall ? end - this.spanInMinutes*60 : end - this.querySpanInSeconds;
+    let records = this.records;
+    fetch('/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
+      let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
+      let endpoints = this.state.endpoints;
+      let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;
+      let toggleDevice = toggleDeviceMap.get('Devices') || {
+        name: 'Devices',
+        avg: 0,
+        max: 0,
+        messageCount: 0,
+      };
+      
+      let startDate = new Date(this.startOfTimestamp.getTime());
+      let endDate = new Date(this.startOfTimestamp.getTime());
+      startDate.setSeconds(startDate.getSeconds() + start - this.spanInMinutes * 60);
+      endDate.setSeconds(endDate.getSeconds() + end);
+
+      let toggleDeviceCount = 0;
+      let toggleDeviceMax = 0;
+      let toggleDeviceSum = 0;
+      for (let item of data.value) {
+        item.durationMs = parseFloat(item.durationMs);
+        item.properties = JSON.parse(item.properties);
+        if (!records.has(item.correlationId)) {
+          records.set(item.correlationId, item);
+          if(item.operationName === 'DiagnosticIoTHubRouting') {
+            if(endpoints.has(item.properties.endpointName)) {
+              let value = endpoints.get(item.properties.endpointName);
+              if(item.durationMs > value.max) {
+                value.max = item.durationMs;
+              }
+              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount+1);
+              value.messageCount ++;
+              endpoints.set(item.properties.endpointName, value);
+            }else {
+              let value = {
+                name: item.properties.endpointName,
+                avg: item.durationMs,
+                max: item.durationMs,
+                messageCount: 1
+              }
+              endpoints.set(item.properties.endpointName, value);
+            }
+          }else if (item.operationName === 'DiagnosticIoTHubIngress') {
+            if(devices.has(item.properties.deviceId)) {
+              let value = devices.get(item.properties.deviceId);
+              if(item.durationMs > value.max) {
+                value.max = item.durationMs;
+              }
+              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount+1);
+              value.messageCount ++;
+              devices.set(item.properties.deviceId, value);
+            }else {
+              let value = {
+                name: item.properties.deviceId,
+                avg: item.durationMs,
+                max: item.durationMs,
+                messageCount: 1
+              }
+              devices.set(item.properties.deviceId, value);
+            }
+          }
+          toggleDeviceCount++;
+          toggleDeviceSum+= item.durationMs;
+          if(item.durationMs > toggleDeviceMax) toggleDeviceMax = item.durationMs;
+        }
+      }
+
+      let recordKeysToDelete = [];
+      let deviceKeysToDelete = [];
+      let endpointKeysToDelete = [];
+      
+      for (let [k, v] of records) {
+        if (v.time < startDate || v.time > endDate) {
+          recordKeysToDelete.push(k);
+          if(item.operationName === 'DiagnosticIoTHubRouting') {
+            let value = endpoints.get(v.properties.endpointName);
+            if(value.messageCount === 1) {
+              endpointKeysToDelete.push(value.name);
+              value.messageCount = 0;
+              endpoints.set(v.properties.endpointName, value);
+            }else {
+              // TODO: HANDLE WHEN MAX DELETED
+              value.avg = (value.avg * value.messageCount - v.durationMs) / (value.messageCount-1);
+              value.messageCount --;
+              endpoints.set(v.properties.endpointName, value);
+            }
+          }else if (item.operationName === 'DiagnosticIoTHubIngress') {
+            let value = devices.get(v.properties.deviceId);
+            if(value.messageCount === 1) {
+              deviceKeysToDelete.push(value.name);
+              value.messageCount = 0;
+              devices.set(v.properties.deviceId, value);
+            }else {
+              // TODO: HANDLE WHEN MAX DELETED
+              value.avg = (value.avg * value.messageCount - v.durationMs) / (value.messageCount-1);
+              value.messageCount --;
+              devices.set(v.properties.deviceId, value);
+            }
+            toggleDeviceCount --;
+            toggleDeviceSum -= v.durationMs;
+          }
+        }
+      }
+
+      toggleDevice.avg = (toggleDevice.avg * toggleDevice.messageCount + toggleDeviceSum ) / (toggleDevice.messageCount + toggleDeviceCount);
+      toggleDevice.messageCount += toggleDeviceCount;
+      toggleDevice.max = toggleDeviceMax;
+      toggleDeviceMap.set('Devices', toggleDevice);
+
+      for(let key of recordKeysToDelete) {
+        records.delete(key);
+      }
+      for(let key of deviceKeysToDelete) {
+        devices.delete(key);
+      }
+      for(let key of endpointKeysToDelete) {
+        endpoints.delete(key);
+      }
+
+      let stateToSet = {
+        endpoints,
+      };
+      if(this.state.expand) {
+        stateToSet.devices = devices;
+        stateToSet.toggleDevices = toggleDeviceMap;
+      }else {
+        stateToSet.toggleDevices = devices;
+        stateToSet.devices = toggleDeviceMap;
+      }
+
+      this.setState(stateToSet,callback);
+    });
   }
 
   componentDidMount() {
-    // setTimeout(this.toggleExpand, 100);
-    setTimeout(() => {
-      this.setState({
-        endpoints: [
-          {
-            name: "Ep1",
-            avg: 23,
-            max: 42,
-          },
-          {
-            name: "Ep2",
-            avg: 24,
-            max: 43,
-          },
-          {
-            name: "Ep3",
-            avg: 34,
-            max: 46,
-          },
-          {
-            name: "Ep4",
-            avg: 34,
-            max: 46,
-          },
-          {
-            name: "Ep5",
-            avg: 34,
-            max: 46,
-          },
-          // {
-          //   name: "Ep6",
-          //   avg: 34,
-          //   max: 46,
-          // }
-        ]
-      });
-      this.rightLineAnimationHandler(1);
-      setTimeout(() => {
-        this.rightLineAnimationHandler(2);
-      }, 600)
-      setTimeout(() => {
-        this.rightLineAnimationHandler(3);
-      }, 1200)
-    }, 1000)
+    this.initDate = new Date();
 
-    setTimeout(() => {
-      this.setState({
-        toggleDevices: [
-          {
-            name: "Node",
-            avg: 234,
-            max: 423,
-          },
-          {
-            name: "C#",
-            avg: 234,
-            max: 453,
-          },
-          {
-            name: "Java",
-            avg: 134,
-            max: 463,
-          },
-          {
-            name: "C",
-            avg: 111,
-            max: 423,
-          }, {
-            name: "C1",
-            avg: 111,
-            max: 423,
-          }, {
-            name: "C2",
-            avg: 111,
-            max: 423,
-          },
-        ],
-        devices: [{
-          name: "Devices",
-          avg: 111,
-          max: 423,
-        }]
-
-
-      })
-
+    this.refresh(true, ()=>{
       this.leftLineAnimationHandler(1);
       setTimeout(() => {
         this.leftLineAnimationHandler(2);
@@ -121,7 +182,19 @@ class Dashboard extends Component {
       setTimeout(() => {
         this.leftLineAnimationHandler(3);
       }, 1200)
-    }, 1000);
+      this.rightLineAnimationHandler(1);
+      setTimeout(() => {
+        this.rightLineAnimationHandler(2);
+      }, 600)
+      setTimeout(() => {
+        this.rightLineAnimationHandler(3);
+      }, 1200)
+    });
+
+    // this.refreshInterval = setInterval(()=>{
+    //   this.refresh(false, ()=>{
+    //   });
+    // },this.querySpanInSeconds * 1000)
   }
 
   componentDidUpdate() {
@@ -151,18 +224,18 @@ class Dashboard extends Component {
   }
 
   getDefaultStyles = (y) => {
-    return this.state.devices.map(d => ({ data: { ...d }, key: d.name, style: { y, height: 0, opacity: 1 } }));
+    return Array.from(this.state.devices.values()).map(d => ({ data: { ...d }, key: d.name, style: { y, height: 0, opacity: 1 } }));
   };
 
   getDefaultNumberStyles = (y, height) => {
-    let length = this.state.devices.length;
-    return this.state.devices.map((d, index) => ({ data: { ...d }, key: d.name, style: { y: this.getY(y, index, length, height, 10), height: 0, opacity: 1 } }));
+    let length = this.state.devices.size;
+    return Array.from(this.state.devices.values()).map((d, index) => ({ data: { ...d }, key: d.name, style: { y: this.getY(y, index, length, height, 10), height: 0, opacity: 1 } }));
   };
 
   getStyles = (height, centerY, elements, progress, animationStep) => {
-    let length = elements.length;
+    let length = elements.size;
     if (progress >= animationStep) {
-      return elements.map((d, index) => {
+      return Array.from(elements.values()).map((d, index) => {
         let y = this.getY(centerY, index, length, height, 10) - 1 / 2 * height;
         return {
           data: { ...d }, key: d.name, style: {
@@ -279,7 +352,7 @@ class Dashboard extends Component {
         {
           (styles) => {
             return <Group>
-              
+
               {styles.map(style => <Group key={style.data.name}><Rect
                 x={b1x}
                 y={style.style.y}
@@ -337,7 +410,7 @@ class Dashboard extends Component {
                   y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7) / 2}
                   height={tfs}
                   fill="rgba(0,0,0,0.9)"
-                  opacity={styles.length === 0 ? 0 :styles[0].style.opacity}
+                  opacity={styles.length === 0 ? 0 : styles[0].style.opacity}
                   data={this.state.expand ? SvgCompress : SvgExpand}
                   ref={input => { this.compressRef = input; }}
                   onClick={this.toggleExpand}
@@ -358,7 +431,7 @@ class Dashboard extends Component {
                     y: 0.7,
                   }}
                 />
-              </Group> 
+              </Group>
             </Group>
           }
         }
@@ -367,10 +440,10 @@ class Dashboard extends Component {
         {
           ({ progress }) =>
             <Group>
-              {this.state.devices.map((d, index) =>
+              {Array.from(this.state.devices.values()).map((d, index) =>
                 <Line
                   key={"line" + index}
-                  points={this.getPointsFromProgress(progress, leftLinex1, leftLinex1 + (leftLinex3 - leftLinex1) * 0.8, leftLinex3, this.getY(b1y, index, this.state.devices.length, bh, 10), liney2)}
+                  points={this.getPointsFromProgress(progress, leftLinex1, leftLinex1 + (leftLinex3 - leftLinex1) * 0.8, leftLinex3, this.getY(b1y, index, this.state.devices.size, bh, 10), liney2)}
                   stroke="rgba(0,0,0,0.5)"
                   shadowColor="rgba(0,0,0,0.5)"
                   shadowOffsetY={3}
@@ -396,7 +469,7 @@ class Dashboard extends Component {
                   opacity={style.style.opacity}
                   fontSize={t2fs * 0.75}
                   height={t2fs * 0.75}
-                  text={`Avg/Max: ${style.data.avg}/${style.data.max}ms`}
+                  text={`Avg/Max: ${style.data.avg.toFixed(0)}/${style.data.max.toFixed(0)}ms`}
                 />
               )}
             </Group>
@@ -404,8 +477,6 @@ class Dashboard extends Component {
         }
       </TransitionMotion>
     </Group>;
-
-    console.log(PngIotHub)
 
     return (
       <Stage ref={input => { this.stageRef = input; }} width={cw} height={ch}>
@@ -425,8 +496,8 @@ class Dashboard extends Component {
             x={b2x + 20}
             y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2}
             image={this.iotHubImage}
-            width={lw*1.3}
-            height={lw*1.3}
+            width={lw * 1.3}
+            height={lw * 1.3}
           />
           <Text
             x={b2x + 20 + lw * 1.3 + 20}
@@ -477,7 +548,7 @@ class Dashboard extends Component {
           />
 
           <TransitionMotion
-            defaultStyles={this.getDefaultStyles(b1y)}
+            // defaultStyles={this.getDefaultStyles(b1y)}
             styles={this.getStyles(bh, b1y, this.state.endpoints, this.state.rightLineInAnimationProgress, 1)}
             willLeave={this.willLeave.bind(null, b1y)}
             willEnter={this.willEnter.bind(null, b1y)}>
@@ -506,7 +577,7 @@ class Dashboard extends Component {
                       }}
                     />
                     <Text
-                      x={b3x + 20 + 35+ 20}
+                      x={b3x + 20 + 35 + 20}
                       y={style.style.y + (style.style.height - tfs) / 2}
                       fontSize={tfs}
                       height={tfs}
@@ -521,21 +592,21 @@ class Dashboard extends Component {
             {
               ({ progress }) =>
                 <Group>
-                  {this.state.endpoints.map((d, index) =>
+                  {Array.from(this.state.endpoints.values()).map((d, index) =>
                     <Line
                       key={"line" + index}
-                      points={this.getPointsFromProgress(progress, rightLinex1, rightLinex1 + (rightLinex3 - rightLinex1) * 0.2, rightLinex3, liney2, this.getY(b1y, index, this.state.endpoints.length, bh, 10))}
+                      points={this.getPointsFromProgress(progress, rightLinex1, rightLinex1 + (rightLinex3 - rightLinex1) * 0.2, rightLinex3, liney2, this.getY(b1y, index, this.state.endpoints.size, bh, 10))}
                       stroke="rgba(0,0,0,0.5)"
-                  shadowColor="rgba(0,0,0,0.5)"
-                  shadowOffsetY={3}
-                  shadowBlur={3}
+                      shadowColor="rgba(0,0,0,0.5)"
+                      shadowOffsetY={3}
+                      shadowBlur={3}
                     />
                   )}
                 </Group>
             }
           </Motion>
           <TransitionMotion
-            defaultStyles={this.getDefaultNumberStyles(b1y, bh)}
+            // defaultStyles={this.getDefaultNumberStyles(b1y, bh)}
             styles={this.getStyles(bh, b1y - 5, this.state.endpoints, this.state.rightLineInAnimationProgress, 3)}
             willLeave={this.willLeave.bind(null, b1y)}
             willEnter={this.willEnterNumber.bind(null, ch)}>
@@ -549,7 +620,7 @@ class Dashboard extends Component {
                       y={style.style.y + (style.style.height - tfs) / 2}
                       fontSize={t2fs * 0.75}
                       height={t2fs * 0.75}
-                      text={`Avg/Max: ${style.data.avg}/${style.data.max}ms`}
+                      text={`Avg/Max: ${style.data.avg.toFixed(0)}/${style.data.max.toFixed(0)}ms`}
                     />
                   )}
                 </Group>

@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var uuid = require('uuid');
-var Util = require('../util/util');
+// var Util = require('../util/util');
 
 var device = express();
 router.get('/', (req, res) => {

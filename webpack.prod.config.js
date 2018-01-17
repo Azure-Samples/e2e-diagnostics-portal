@@ -40,6 +40,20 @@ module.exports = [
           }, {
             loader: "css-loader" // translates CSS into CommonJS
           }]
+        },
+        {
+          test: /\.svg$/, use:[
+            {
+              loader: "raw-loader"
+            }
+          ]
+        },
+        {
+          test: /\.png$/, use:[
+            {
+              loader: "file-loader"
+            }
+          ]
         }
       ]
     },

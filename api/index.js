@@ -7,8 +7,8 @@ const metric = require('./metric');
 const app = express();
 app.use(bodyParser.json());
 
-app.use('/device', device);
-app.use('/metric', metric);
+app.use('/api/device', device);
+app.use('/api/metric', metric);
 
 app.listen(3001, null, null, () => {
   console.log('listening on ' + 3001);
