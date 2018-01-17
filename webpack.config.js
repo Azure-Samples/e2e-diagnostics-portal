@@ -13,7 +13,6 @@ module.exports = {
     hot: true,
     inline: true,
     contentBase: path.join(__dirname, 'public'),
-    host: '0.0.0.0',
     port: 3333,
     historyApiFallback: true,
     proxy: {
@@ -49,6 +48,20 @@ module.exports = {
         }, {
           loader: "css-loader" // translates CSS into CommonJS
         }]
+      },
+      {
+        test: /\.svg$/, use:[
+          {
+            loader: "raw-loader"
+          }
+        ]
+      },
+      {
+        test: /\.png$/, use:[
+          {
+            loader: "file-loader"
+          }
+        ]
       }
     ]
   },
