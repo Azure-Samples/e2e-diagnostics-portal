@@ -33,7 +33,7 @@ class Dashboard extends Component {
     this.startOfTimestamp = new Date('2018-01-17T08:00:00Z');
     ;
   }
-  
+
   refresh = (firstCall, callback) => {
     let end = (new Date() - this.initDate) / 1000;
     let start = firstCall ? end - this.spanInMinutes * 60 : end - this.querySpanInSeconds;
@@ -106,7 +106,6 @@ class Dashboard extends Component {
             toggleDeviceCount++;
             toggleDeviceSum += item.durationMs;
             toggleDeviceSumSize += item.properties.messageSize;
-            console.log(toggleDeviceSumSize)
             if (item.durationMs > toggleDeviceMax) toggleDeviceMax = item.durationMs;
           }
 
@@ -151,7 +150,6 @@ class Dashboard extends Component {
       }
 
       toggleDevice.avg = (toggleDevice.avg * toggleDevice.messageCount + toggleDeviceSum) / (toggleDevice.messageCount + toggleDeviceCount);
-      console.log(toggleDeviceSumSize)
       toggleDevice.avgSize = (toggleDevice.avgSize * toggleDevice.messageCount + toggleDeviceSumSize) / (toggleDevice.messageCount + toggleDeviceCount);
       toggleDevice.messageCount += toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
@@ -201,7 +199,7 @@ class Dashboard extends Component {
         this.rightLineAnimationHandler(3);
       }, 1200)
     });
-   
+
 
     // this.refreshInterval = setInterval(()=>{
     //   this.refresh(false, ()=>{
@@ -313,6 +311,16 @@ class Dashboard extends Component {
     }
   }
 
+  getReadableSize = (num) => {
+    if(num <1024) {
+      return num.toFixed(0) + " Bytes";
+    }else if(num < 1024*1024) {
+      return (num / 1024).toFixed(0) + " KB";
+    }else {
+      return (num / 1024 / 1024).toFixed(0) + " MB";
+    }
+  }
+
   render() {
     let ff = "Segoe UI";
     let sidebar = 50;
@@ -320,7 +328,7 @@ class Dashboard extends Component {
     let cw = window.innerWidth - sidebar;
     let bw = cw * 0.2222;
     let bw_small = bw * 0.75;
-    let bh = 80;
+    let bh = 100;
     let b2h = 120;
     let b1x = 50;
     let b1y = ch / 2 - bh / 2;
@@ -388,7 +396,7 @@ class Dashboard extends Component {
                 />
                 <Text
                   x={b1x + 20 + lw + 20}
-                  y={style.style.y + (style.style.height - lw) / 2}
+                  y={style.style.y + (style.style.height -(tfs+t2fs*2 +10)) / 2}
                   fontSize={tfs}
                   height={tfs}
                   fill="rgba(0,0,0,0.9)"
@@ -398,11 +406,20 @@ class Dashboard extends Component {
 
                 <Text
                   x={b1x + 20 + lw + 20}
-                  y={style.style.y + (style.style.height - lw) / 2 + tfs + 5}
+                  y={style.style.y + (style.style.height -(tfs+t2fs*2 +10)) / 2 + tfs + 5}
                   fontSize={t2fs}
                   height={t2fs}
                   fill={"rgba(0, 0, 0, 0.65)"}
-                  text={"Avg size: " + style.data.avgSize.toFixed(0) + " bytes"}
+                  text={"Avg size: " + this.getReadableSize(style.data.avgSize)}
+                />
+
+                <Text
+                  x={b1x + 20 + lw + 20}
+                  y={style.style.y + (style.style.height -(tfs+t2fs*2 +10)) / 2 + tfs + 5 + t2fs + 5}
+                  fontSize={t2fs}
+                  height={t2fs}
+                  fill={"rgba(0, 0, 0, 0.65)"}
+                  text={"Sum: " + this.getReadableSize(style.data.avgSize * style.data.messageCount)}
                 />
 
               </Group>)}
@@ -483,34 +500,31 @@ class Dashboard extends Component {
           function (styles) {
             return <Group>
               {styles.map(style =>
-              <Group>
-                <Text
-                  key={style.data.name}
-                  x={leftLinex1 + 10}
-                  y={style.style.y + (style.style.height - tfs) / 2}
-                  opacity={style.style.opacity}
-                  fontSize={t2fs * 0.75}
-                  height={t2fs * 0.75}
-                  text={`Avg: ${style.data.avg.toFixed(0)} ms`}
-                />
-                <Text
-                  key={style.data.name}
-                  x={leftLinex1 + 10 + 75}
-                  y={style.style.y + (style.style.height - tfs) / 2}
-                  opacity={style.style.opacity}
-                  fontSize={t2fs * 0.75}
-                  height={t2fs * 0.75}
-                  text={`Max: ${style.data.max.toFixed(0)} ms`}
-                />
-                <Text
-                  key={style.data.name}
-                  x={leftLinex1 + 10 + 150}
-                  y={style.style.y + (style.style.height - tfs) / 2}
-                  opacity={style.style.opacity}
-                  fontSize={t2fs * 0.75}
-                  height={t2fs * 0.75}
-                  text={`Num: ${style.data.messageCount.toFixed(0)}`}
-                />
+                <Group key={style.data.name}>
+                  <Text
+                    x={leftLinex1 + 10}
+                    y={style.style.y + (style.style.height - tfs) / 2}
+                    opacity={style.style.opacity}
+                    fontSize={t2fs * 0.75}
+                    height={t2fs * 0.75}
+                    text={`Avg: ${style.data.avg.toFixed(0)} ms`}
+                  />
+                  <Text
+                    x={leftLinex1 + 10 + 75}
+                    y={style.style.y + (style.style.height - tfs) / 2}
+                    opacity={style.style.opacity}
+                    fontSize={t2fs * 0.75}
+                    height={t2fs * 0.75}
+                    text={`Max: ${style.data.max.toFixed(0)} ms`}
+                  />
+                  <Text
+                    x={leftLinex1 + 10 + 150}
+                    y={style.style.y + (style.style.height - tfs) / 2}
+                    opacity={style.style.opacity}
+                    fontSize={t2fs * 0.75}
+                    height={t2fs * 0.75}
+                    text={`Num: ${style.data.messageCount.toFixed(0)}`}
+                  />
                 </Group>
               )}
             </Group>
@@ -582,7 +596,6 @@ class Dashboard extends Component {
               function (styles) {
                 return <Group>
                   {styles.map(style => <Group key={style.data.name}><Rect
-
                     x={b3x}
                     y={style.style.y}
                     width={bw_small}
@@ -639,31 +652,28 @@ class Dashboard extends Component {
               function (styles) {
                 return <Group>
                   {styles.map(style =>
-                  <Group>
-                    <Text
-                      key={style.data.name}
-                      x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10}
-                      y={style.style.y + (style.style.height - tfs) / 2}
-                      fontSize={t2fs * 0.75}
-                      height={t2fs * 0.75}
-                      text={`Avg: ${style.data.avg.toFixed(0)} ms`}
-                    />
-                    <Text
-                      key={style.data.name}
-                      x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 75}
-                      y={style.style.y + (style.style.height - tfs) / 2}
-                      fontSize={t2fs * 0.75}
-                      height={t2fs * 0.75}
-                      text={`Max: ${style.data.max.toFixed(0)} ms`}
-                    />
-                    <Text
-                      key={style.data.name}
-                      x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 150}
-                      y={style.style.y + (style.style.height - tfs) / 2}
-                      fontSize={t2fs * 0.75}
-                      height={t2fs * 0.75}
-                      text={`Num: ${style.data.messageCount.toFixed(0)}`}
-                    />
+                    <Group key={style.data.name}>
+                      <Text
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10}
+                        y={style.style.y + (style.style.height - tfs) / 2}
+                        fontSize={t2fs * 0.75}
+                        height={t2fs * 0.75}
+                        text={`Avg: ${style.data.avg.toFixed(0)} ms`}
+                      />
+                      <Text
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 75}
+                        y={style.style.y + (style.style.height - tfs) / 2}
+                        fontSize={t2fs * 0.75}
+                        height={t2fs * 0.75}
+                        text={`Max: ${style.data.max.toFixed(0)} ms`}
+                      />
+                      <Text
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 150}
+                        y={style.style.y + (style.style.height - tfs) / 2}
+                        fontSize={t2fs * 0.75}
+                        height={t2fs * 0.75}
+                        text={`Num: ${style.data.messageCount.toFixed(0)}`}
+                      />
                     </Group>
                   )}
                 </Group>
