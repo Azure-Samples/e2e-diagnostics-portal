@@ -306,8 +306,17 @@ class Dashboard extends Component {
       return [x1, y1, x1 + currentDistance, y1];
     } else if (currentDistance <= dist1 + dist2) {
       return [x1, y1, x2, y1, x2, y1 + (y2 > y1 ? currentDistance - dist1 : -currentDistance + dist1)];
-    } else {
+    } else if (currentDistance < totalDistance - 1) {
       return [x1, y1, x2, y1, x2, y2, x2 + currentDistance - dist1 - dist2, y2];
+    } else {
+      let lengthOfArrow = 10;
+      let x4 = x2 + currentDistance - dist1 - dist2;
+      let y4 = y2;
+      let x5 = x4 - 0.7071 * lengthOfArrow;
+      let y5 = y4- 0.7071 * lengthOfArrow;
+      let x6 = x5;
+      let y6 = y4+ 0.7071 * lengthOfArrow;
+      return [x1, y1, x2, y1, x2, y2,x4 ,y4,x5,y5,x4,y4,x6,y6 ];
     }
   }
 
