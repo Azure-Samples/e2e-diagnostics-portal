@@ -35,19 +35,20 @@ class Dashboard extends Component {
 
   refresh = (firstCall, callback) => {
     let end = (new Date() - this.initDate) / 1000;
-    let start = firstCall ? end - this.spanInMinutes*60 : end - this.querySpanInSeconds;
+    let start = firstCall ? end - this.spanInMinutes * 60 : end - this.querySpanInSeconds;
     let records = this.records;
     fetch('/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
       let endpoints = this.state.endpoints;
       let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;
-      let toggleDevice = toggleDeviceMap.get('Devices') || {
-        name: 'Devices',
+      let toggleDevice = toggleDeviceMap.get('All Devices') || {
+        name: 'All Devices',
         avg: 0,
         max: 0,
+        avgSize: 0,
         messageCount: 0,
       };
-      
+
       let startDate = new Date(this.startOfTimestamp.getTime());
       let endDate = new Date(this.startOfTimestamp.getTime());
       startDate.setSeconds(startDate.getSeconds() + start - this.spanInMinutes * 60);
@@ -56,21 +57,23 @@ class Dashboard extends Component {
       let toggleDeviceCount = 0;
       let toggleDeviceMax = 0;
       let toggleDeviceSum = 0;
+      let toggleDeviceSumSize = 0;
       for (let item of data.value) {
         item.durationMs = parseFloat(item.durationMs);
         item.properties = JSON.parse(item.properties);
+        item.properties.messageSize = parseFloat(item.properties.messageSize);
         if (!records.has(item.correlationId)) {
           records.set(item.correlationId, item);
-          if(item.operationName === 'DiagnosticIoTHubRouting') {
-            if(endpoints.has(item.properties.endpointName)) {
+          if (item.operationName === 'DiagnosticIoTHubRouting') {
+            if (endpoints.has(item.properties.endpointName)) {
               let value = endpoints.get(item.properties.endpointName);
-              if(item.durationMs > value.max) {
+              if (item.durationMs > value.max) {
                 value.max = item.durationMs;
               }
-              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount+1);
-              value.messageCount ++;
+              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
+              value.messageCount++;
               endpoints.set(item.properties.endpointName, value);
-            }else {
+            } else {
               let value = {
                 name: item.properties.endpointName,
                 avg: item.durationMs,
@@ -79,102 +82,109 @@ class Dashboard extends Component {
               }
               endpoints.set(item.properties.endpointName, value);
             }
-          }else if (item.operationName === 'DiagnosticIoTHubIngress') {
-            if(devices.has(item.properties.deviceId)) {
+          } else if (item.operationName === 'DiagnosticIoTHubIngress') {
+            if (devices.has(item.properties.deviceId)) {
               let value = devices.get(item.properties.deviceId);
-              if(item.durationMs > value.max) {
+              if (item.durationMs > value.max) {
                 value.max = item.durationMs;
               }
-              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount+1);
-              value.messageCount ++;
+              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
+              value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
+              value.messageCount++;
               devices.set(item.properties.deviceId, value);
-            }else {
+            } else {
               let value = {
                 name: item.properties.deviceId,
                 avg: item.durationMs,
                 max: item.durationMs,
+                avgSize: item.properties.messageSize,
                 messageCount: 1
               }
               devices.set(item.properties.deviceId, value);
             }
+            toggleDeviceCount++;
+            toggleDeviceSum += item.durationMs;
+            toggleDeviceSumSize += item.properties.messageSize;
+            console.log(toggleDeviceSumSize)
+            if (item.durationMs > toggleDeviceMax) toggleDeviceMax = item.durationMs;
           }
-          toggleDeviceCount++;
-          toggleDeviceSum+= item.durationMs;
-          if(item.durationMs > toggleDeviceMax) toggleDeviceMax = item.durationMs;
+
         }
       }
 
       let recordKeysToDelete = [];
       let deviceKeysToDelete = [];
       let endpointKeysToDelete = [];
-      
+
       for (let [k, v] of records) {
         if (v.time < startDate || v.time > endDate) {
           recordKeysToDelete.push(k);
-          if(item.operationName === 'DiagnosticIoTHubRouting') {
+          if (item.operationName === 'DiagnosticIoTHubRouting') {
             let value = endpoints.get(v.properties.endpointName);
-            if(value.messageCount === 1) {
+            if (value.messageCount === 1) {
               endpointKeysToDelete.push(value.name);
               value.messageCount = 0;
               endpoints.set(v.properties.endpointName, value);
-            }else {
+            } else {
               // TODO: HANDLE WHEN MAX DELETED
-              value.avg = (value.avg * value.messageCount - v.durationMs) / (value.messageCount-1);
-              value.messageCount --;
+              value.avg = (value.avg * value.messageCount - v.durationMs) / (value.messageCount - 1);
+              value.messageCount--;
               endpoints.set(v.properties.endpointName, value);
             }
-          }else if (item.operationName === 'DiagnosticIoTHubIngress') {
+          } else if (item.operationName === 'DiagnosticIoTHubIngress') {
             let value = devices.get(v.properties.deviceId);
-            if(value.messageCount === 1) {
+            if (value.messageCount === 1) {
               deviceKeysToDelete.push(value.name);
               value.messageCount = 0;
               devices.set(v.properties.deviceId, value);
-            }else {
+            } else {
               // TODO: HANDLE WHEN MAX DELETED
-              value.avg = (value.avg * value.messageCount - v.durationMs) / (value.messageCount-1);
-              value.messageCount --;
+              value.avg = (value.avg * value.messageCount - v.durationMs) / (value.messageCount - 1);
+              value.messageCount--;
               devices.set(v.properties.deviceId, value);
             }
-            toggleDeviceCount --;
+            toggleDeviceCount--;
             toggleDeviceSum -= v.durationMs;
           }
         }
       }
 
-      toggleDevice.avg = (toggleDevice.avg * toggleDevice.messageCount + toggleDeviceSum ) / (toggleDevice.messageCount + toggleDeviceCount);
+      toggleDevice.avg = (toggleDevice.avg * toggleDevice.messageCount + toggleDeviceSum) / (toggleDevice.messageCount + toggleDeviceCount);
+      console.log(toggleDeviceSumSize)
+      toggleDevice.avgSize = (toggleDevice.avgSize * toggleDevice.messageCount + toggleDeviceSumSize) / (toggleDevice.messageCount + toggleDeviceCount);
       toggleDevice.messageCount += toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
-      toggleDeviceMap.set('Devices', toggleDevice);
+      toggleDeviceMap.set('All Devices', toggleDevice);
 
-      for(let key of recordKeysToDelete) {
+      for (let key of recordKeysToDelete) {
         records.delete(key);
       }
-      for(let key of deviceKeysToDelete) {
+      for (let key of deviceKeysToDelete) {
         devices.delete(key);
       }
-      for(let key of endpointKeysToDelete) {
+      for (let key of endpointKeysToDelete) {
         endpoints.delete(key);
       }
 
       let stateToSet = {
         endpoints,
       };
-      if(this.state.expand) {
+      if (this.state.expand) {
         stateToSet.devices = devices;
         stateToSet.toggleDevices = toggleDeviceMap;
-      }else {
+      } else {
         stateToSet.toggleDevices = devices;
         stateToSet.devices = toggleDeviceMap;
       }
 
-      this.setState(stateToSet,callback);
+      this.setState(stateToSet, callback);
     });
   }
 
   componentDidMount() {
     this.initDate = new Date();
 
-    this.refresh(true, ()=>{
+    this.refresh(true, () => {
       this.leftLineAnimationHandler(1);
       setTimeout(() => {
         this.leftLineAnimationHandler(2);
@@ -376,12 +386,21 @@ class Dashboard extends Component {
                 />
                 <Text
                   x={b1x + 20 + lw + 20}
-                  y={style.style.y + (style.style.height - tfs) / 2}
+                  y={style.style.y + (style.style.height - lw) / 2}
                   fontSize={tfs}
                   height={tfs}
                   fill="rgba(0,0,0,0.9)"
                   text={style.data.name}
                   opacity={style.style.opacity}
+                />
+
+                <Text
+                  x={b1x + 20 + lw + 20}
+                  y={style.style.y + (style.style.height - lw) / 2 + tfs + 5}
+                  fontSize={t2fs}
+                  height={t2fs}
+                  fill={"rgba(0, 0, 0, 0.65)"}
+                  text={"Avg size: " + style.data.avgSize.toFixed(0) + " bytes"}
                 />
 
               </Group>)}
