@@ -31,8 +31,9 @@ class Dashboard extends Component {
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
     this.startOfTimestamp = new Date('2018-01-17T08:00:00Z');
+    ;
   }
-
+  
   refresh = (firstCall, callback) => {
     let end = (new Date() - this.initDate) / 1000;
     let start = firstCall ? end - this.spanInMinutes * 60 : end - this.querySpanInSeconds;
@@ -200,6 +201,7 @@ class Dashboard extends Component {
         this.rightLineAnimationHandler(3);
       }, 1200)
     });
+   
 
     // this.refreshInterval = setInterval(()=>{
     //   this.refresh(false, ()=>{
@@ -481,6 +483,7 @@ class Dashboard extends Component {
           function (styles) {
             return <Group>
               {styles.map(style =>
+              <Group>
                 <Text
                   key={style.data.name}
                   x={leftLinex1 + 10}
@@ -488,8 +491,27 @@ class Dashboard extends Component {
                   opacity={style.style.opacity}
                   fontSize={t2fs * 0.75}
                   height={t2fs * 0.75}
-                  text={`Avg/Max: ${style.data.avg.toFixed(0)}/${style.data.max.toFixed(0)}ms`}
+                  text={`Avg: ${style.data.avg.toFixed(0)} ms`}
                 />
+                <Text
+                  key={style.data.name}
+                  x={leftLinex1 + 10 + 75}
+                  y={style.style.y + (style.style.height - tfs) / 2}
+                  opacity={style.style.opacity}
+                  fontSize={t2fs * 0.75}
+                  height={t2fs * 0.75}
+                  text={`Max: ${style.data.max.toFixed(0)} ms`}
+                />
+                <Text
+                  key={style.data.name}
+                  x={leftLinex1 + 10 + 150}
+                  y={style.style.y + (style.style.height - tfs) / 2}
+                  opacity={style.style.opacity}
+                  fontSize={t2fs * 0.75}
+                  height={t2fs * 0.75}
+                  text={`Num: ${style.data.messageCount.toFixed(0)}`}
+                />
+                </Group>
               )}
             </Group>
           }
@@ -617,14 +639,32 @@ class Dashboard extends Component {
               function (styles) {
                 return <Group>
                   {styles.map(style =>
+                  <Group>
                     <Text
                       key={style.data.name}
                       x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10}
                       y={style.style.y + (style.style.height - tfs) / 2}
                       fontSize={t2fs * 0.75}
                       height={t2fs * 0.75}
-                      text={`Avg/Max: ${style.data.avg.toFixed(0)}/${style.data.max.toFixed(0)}ms`}
+                      text={`Avg: ${style.data.avg.toFixed(0)} ms`}
                     />
+                    <Text
+                      key={style.data.name}
+                      x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 75}
+                      y={style.style.y + (style.style.height - tfs) / 2}
+                      fontSize={t2fs * 0.75}
+                      height={t2fs * 0.75}
+                      text={`Max: ${style.data.max.toFixed(0)} ms`}
+                    />
+                    <Text
+                      key={style.data.name}
+                      x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 150}
+                      y={style.style.y + (style.style.height - tfs) / 2}
+                      fontSize={t2fs * 0.75}
+                      height={t2fs * 0.75}
+                      text={`Num: ${style.data.messageCount.toFixed(0)}`}
+                    />
+                    </Group>
                   )}
                 </Group>
               }
