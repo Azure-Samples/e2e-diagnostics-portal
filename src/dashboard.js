@@ -26,7 +26,8 @@ class Dashboard extends Component {
     };
     this.records = new Map();
     this.initDate = null;
-    this.querySpanInSeconds = 3;
+    this.queryMetricSpanInSeconds = 3;
+    this.queryDeviceSpanInSeconds = 2;
     this.spanInMinutes = 5;
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
@@ -34,9 +35,20 @@ class Dashboard extends Component {
     ;
   }
 
+  getDeviceNumber = () => {
+    fetch('/api/device').then(results => results.json()).then(data => {
+      this.setState({
+        connectedDevices: data.connected,
+        registeredDevices: data.registered,
+      });
+    }).catch((e) => {
+      console.log('Fetching device status error.', e.message);
+    })
+  }
+
   refresh = (firstCall, callback) => {
     let end = (new Date() - this.initDate) / 1000;
-    let start = firstCall ? end - this.spanInMinutes * 60 : end - this.querySpanInSeconds;
+    let start = firstCall ? end - this.spanInMinutes * 60 : end - this.queryMetricSpanInSeconds;
     let records = this.records;
     fetch('/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
@@ -204,7 +216,10 @@ class Dashboard extends Component {
     // this.refreshInterval = setInterval(()=>{
     //   this.refresh(false, ()=>{
     //   });
-    // },this.querySpanInSeconds * 1000)
+    // },this.queryMetricSpanInSeconds * 1000)
+
+    this.getDeviceNumber();
+    this.getDeviceNumberInterval = setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
   }
 
   componentDidUpdate() {
@@ -313,19 +328,19 @@ class Dashboard extends Component {
       let x4 = x2 + currentDistance - dist1 - dist2;
       let y4 = y2;
       let x5 = x4 - 0.7071 * lengthOfArrow;
-      let y5 = y4- 0.7071 * lengthOfArrow;
+      let y5 = y4 - 0.7071 * lengthOfArrow;
       let x6 = x5;
-      let y6 = y4+ 0.7071 * lengthOfArrow;
-      return [x1, y1, x2, y1, x2, y2,x4 ,y4,x5,y5,x4,y4,x6,y6 ];
+      let y6 = y4 + 0.7071 * lengthOfArrow;
+      return [x1, y1, x2, y1, x2, y2, x4, y4, x5, y5, x4, y4, x6, y6];
     }
   }
 
   getReadableSize = (num) => {
-    if(num <1024) {
+    if (num < 1024) {
       return num.toFixed(0) + " Bytes";
-    }else if(num < 1024*1024) {
+    } else if (num < 1024 * 1024) {
       return (num / 1024).toFixed(0) + " KB";
-    }else {
+    } else {
       return (num / 1024 / 1024).toFixed(0) + " MB";
     }
   }
@@ -405,7 +420,7 @@ class Dashboard extends Component {
                 />
                 <Text
                   x={b1x + 20 + lw + 20}
-                  y={style.style.y + (style.style.height -(tfs+t2fs*2 +10)) / 2}
+                  y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2}
                   fontSize={tfs}
                   height={tfs}
                   fill="rgba(0,0,0,0.9)"
@@ -415,7 +430,7 @@ class Dashboard extends Component {
 
                 <Text
                   x={b1x + 20 + lw + 20}
-                  y={style.style.y + (style.style.height -(tfs+t2fs*2 +10)) / 2 + tfs + 5}
+                  y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2 + tfs + 5}
                   fontSize={t2fs}
                   height={t2fs}
                   fill={"rgba(0, 0, 0, 0.65)"}
@@ -424,7 +439,7 @@ class Dashboard extends Component {
 
                 <Text
                   x={b1x + 20 + lw + 20}
-                  y={style.style.y + (style.style.height -(tfs+t2fs*2 +10)) / 2 + tfs + 5 + t2fs + 5}
+                  y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2 + tfs + 5 + t2fs + 5}
                   fontSize={t2fs}
                   height={t2fs}
                   fill={"rgba(0, 0, 0, 0.65)"}
@@ -576,16 +591,19 @@ class Dashboard extends Component {
             fontSize={t2fs}
             height={t2fs}
             fill={"rgba(0, 0, 0, 0.65)"}
-            text="Device connected: 2"
+            text={"Device connected: " + this.state.connectedDevices || 0}
           />
+
           <Text
             x={b2x + 20}
             y={b1y - b2h * 1.7 / 2 + b2h + t2fs + 5}
             fontSize={t2fs}
             height={t2fs}
             fill={"rgba(0, 0, 0, 0.65)"}
-            text="Device registered: 6"
+            text={"Device registered: " + this.state.registeredDevices || 0}
           />
+
+
           <Text
             x={b2x + 20}
             y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 2 + 10}
