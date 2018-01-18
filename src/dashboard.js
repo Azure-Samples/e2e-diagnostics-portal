@@ -521,25 +521,9 @@ class Dashboard extends Component {
           <Text
             x={b2x + 20 + lw * 1.3 + 20}
             y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2}
-            fontSize={tfs}
-            height={tfs}
+            fontSize={35}
+            height={35}
             text="IoT Hub"
-          />
-          <Text
-            x={b2x + 20 + lw * 1.3 + 20}
-            y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2 + tfs + 10}
-            fontSize={t2fs}
-            height={t2fs}
-            fill={"rgba(0, 0, 0, 0.65)"}
-            text="Max: 555ms"
-          />
-          <Text
-            x={b2x + 20 + lw * 1.3 + 20}
-            y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2 + tfs + t2fs + 10 + 5}
-            fontSize={t2fs}
-            height={t2fs}
-            fill={"rgba(0, 0, 0, 0.65)"}
-            text="Avg: 220ms"
           />
           <Text
             x={b2x + 20}
