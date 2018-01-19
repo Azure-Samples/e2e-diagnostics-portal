@@ -1,8 +1,10 @@
 import React, { Component } from 'react';
 import './dashboard.scss';
 import Device from './device';
+import gzip from 'gzip-js';
 import { Motion, TransitionMotion, spring, presets } from 'react-motion';
 import { Stage, Layer, Group, Rect, Text, Image as KonvaImage, Path, Line } from 'react-konva';
+import util from 'util';
 import SvgChip from '../asset/microchip.svg';
 import PngIotHub from '../asset/iothub.png';
 import SvgExpand from '../asset/expand.svg';
@@ -32,8 +34,8 @@ class Dashboard extends Component {
     this.queryDeviceSpanInSeconds = 2;
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
-    this.startOfTimestamp = new Date('2018-01-17T08:00:00Z');
-    ;
+    this.startOfTimestamp = new Date('2018-01-19T07:17:00Z');
+    this.kustoLinkTemplate = "https://analytics.applicationinsights.io/subscriptions/faab228d-df7a-4086-991e-e81c4659d41a/resourcegroups/mj-prod/components/amai?q=%s&apptype=other&timespan=P1D";
   }
 
   getDeviceNumber = () => {
@@ -47,8 +49,17 @@ class Dashboard extends Component {
     })
   }
 
+  getCurrentTimeWindow = () => {
+    let end = (new Date() - this.initDate) / 1000;
+    let startDate = new Date(this.startOfTimestamp.getTime());
+    let endDate = new Date(this.startOfTimestamp.getTime());
+    startDate.setSeconds(startDate.getSeconds() + end - this.state.spanInMinutes * 60);
+    endDate.setSeconds(endDate.getSeconds() + end);
+    return [startDate, endDate];
+  }
+
   refresh = (firstCall, callback) => {
-    if(firstCall) {
+    if (firstCall) {
       this.initDate = new Date();
       this.reset();
     }
@@ -64,31 +75,36 @@ class Dashboard extends Component {
         name: 'All Devices',
         avg: 0,
         max: 0,
+        maxId: undefined,
         avgSize: 0,
         messageCount: 0,
       };
 
-      let startDate = new Date(this.startOfTimestamp.getTime());
-      let endDate = new Date(this.startOfTimestamp.getTime());
-      startDate.setSeconds(startDate.getSeconds() + start - this.state.spanInMinutes * 60);
-      endDate.setSeconds(endDate.getSeconds() + end);
+      let [startDate, endDate] = this.getCurrentTimeWindow();
 
       let toggleDeviceCount = 0;
       let toggleDeviceMax = 0;
+      let toggleDeviceMaxId = undefined;
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
+      let p1 = performance.now();
       for (let item of data.value) {
-        item.durationMs = parseFloat(item.durationMs);
-        item.properties = JSON.parse(item.properties);
-        item.properties.messageSize = parseFloat(item.properties.messageSize);
-        let correlationPrefix = item.correlationId.substring(8, 16);
         if (!records.has(item.correlationId)) {
+          let correlationPrefix = item.correlationId.substring(8, 16);
+          item.durationMs = parseFloat(item.durationMs);
+          try {
+            item.properties = JSON.parse(item.properties);
+          } catch (e) {
+            continue;
+          }
+          item.properties.messageSize = parseFloat(item.properties.messageSize);
           records.set(item.correlationId, item);
           if (item.operationName === 'DiagnosticIoTHubRouting') {
             if (endpoints.has(item.properties.endpointName)) {
               let value = endpoints.get(item.properties.endpointName);
               if (item.durationMs > value.max) {
                 value.max = item.durationMs;
+                value.maxId = item.correlationId;
               }
               value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
               value.messageCount++;
@@ -98,6 +114,7 @@ class Dashboard extends Component {
                 name: item.properties.endpointName,
                 avg: item.durationMs,
                 max: item.durationMs,
+                maxId: item.correlationId,
                 messageCount: 1
               }
               endpoints.set(item.properties.endpointName, value);
@@ -108,6 +125,7 @@ class Dashboard extends Component {
               let value = devices.get(item.properties.deviceId);
               if (item.durationMs > value.max) {
                 value.max = item.durationMs;
+                value.maxId = item.correlationId;
               }
               value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
               value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
@@ -118,6 +136,7 @@ class Dashboard extends Component {
                 name: item.properties.deviceId,
                 avg: item.durationMs,
                 max: item.durationMs,
+                maxId: item.correlationId,
                 avgSize: item.properties.messageSize,
                 messageCount: 1
               }
@@ -126,7 +145,6 @@ class Dashboard extends Component {
             toggleDeviceCount++;
             toggleDeviceSum += item.durationMs;
             toggleDeviceSumSize += item.properties.messageSize;
-            if (item.durationMs > toggleDeviceMax) toggleDeviceMax = item.durationMs;
 
             if (!unmatched.has(correlationPrefix)) {
               unmatched.set(correlationPrefix, true);
@@ -139,6 +157,8 @@ class Dashboard extends Component {
       let recordKeysToDelete = [];
       let deviceKeysToDelete = [];
       let endpointKeysToDelete = [];
+      let updateMaxDevicesMap = new Map();
+      let updateMaxEndpointsMap = new Map();
 
       for (let [k, v] of records) {
         if (v.time < startDate || v.time > endDate) {
@@ -152,7 +172,11 @@ class Dashboard extends Component {
               value.messageCount = 0;
               endpoints.set(v.properties.endpointName, value);
             } else {
-              // TODO: HANDLE WHEN MAX DELETED
+              if(value.max === v.max) {
+                value.maxId = undefined;
+                value.max = 0;
+                updateMaxEndpointsMap.set(value.name, true);
+              }
               value.avg = (value.avg * value.messageCount - v.durationMs) / (value.messageCount - 1);
               value.messageCount--;
               endpoints.set(v.properties.endpointName, value);
@@ -164,7 +188,11 @@ class Dashboard extends Component {
               value.messageCount = 0;
               devices.set(v.properties.deviceId, value);
             } else {
-              // TODO: HANDLE WHEN MAX DELETED
+              if(value.max === v.max) {
+                value.maxId = undefined;
+                value.max = 0;
+                updateMaxDevicesMap.set(value.name, true);
+              }
               value.avg = (value.avg * value.messageCount - v.durationMs) / (value.messageCount - 1);
               value.messageCount--;
               devices.set(v.properties.deviceId, value);
@@ -175,10 +203,38 @@ class Dashboard extends Component {
         }
       }
 
+      for (let [k, v] of records) {
+        if (v.operationName === 'DiagnosticIoTHubRouting') {
+          if(updateMaxEndpointsMap.has(v.properties.endpointName)) {
+            if(v.durationMs > endpoints.get(v.properties.endpointName).max) {
+              let ep = endpoints.get(v.properties.endpointName);
+              ep.max = v.durationMs;
+              ep.maxId = v.correlationId;
+              endpoints.set(v.properties.endpointName, ep);
+            }
+          }
+        }
+        else if (v.operationName === 'DiagnosticIoTHubIngress') {
+          if(updateMaxDevicesMap.has(v.properties.deviceId)) {
+            if(v.durationMs > devices.get(v.properties.deviceId).max) {
+              let ep = devices.get(v.properties.deviceId);
+              ep.max = v.durationMs;
+              ep.maxId = v.correlationId;
+              devices.set(v.properties.deviceId, ep);
+            }
+          }
+          if(v.durationMs > toggleDeviceMax) {
+            toggleDeviceMax = v.durationMs;
+            toggleDeviceMaxId = v.correlationId;
+          }
+        }
+      }
+
       toggleDevice.avg = (toggleDevice.avg * toggleDevice.messageCount + toggleDeviceSum) / (toggleDevice.messageCount + toggleDeviceCount);
       toggleDevice.avgSize = (toggleDevice.avgSize * toggleDevice.messageCount + toggleDeviceSumSize) / (toggleDevice.messageCount + toggleDeviceCount);
       toggleDevice.messageCount += toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
+      toggleDevice.maxId = toggleDeviceMaxId;
       toggleDeviceMap.set('All Devices', toggleDevice);
 
       for (let key of recordKeysToDelete) {
@@ -191,11 +247,6 @@ class Dashboard extends Component {
         endpoints.delete(key);
       }
 
-      for (let [k, v] of this.records) {
-        if (k.includes('bb333237')) {
-          console.log(v);
-        }
-      }
       let unmatchedNumber = 0;
       for (let v of unmatched.values()) {
         if (v) unmatchedNumber++;
@@ -212,6 +263,9 @@ class Dashboard extends Component {
         stateToSet.toggleDevices = devices;
         stateToSet.devices = toggleDeviceMap;
       }
+
+      let p2 = performance.now();
+      console.log('Consuming: ' + (p2 - p1));
 
       this.setState(stateToSet, callback);
     });
@@ -236,10 +290,10 @@ class Dashboard extends Component {
     });
 
 
-    this.refreshInterval = setInterval(()=>{
-      this.refresh(false, ()=>{
+    this.refreshInterval = setInterval(() => {
+      this.refresh(false, () => {
       });
-    },this.queryMetricSpanInSeconds * 1000)
+    }, this.queryMetricSpanInSeconds * 1000)
 
     this.getDeviceNumber();
     this.getDeviceNumberInterval = setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
@@ -406,17 +460,47 @@ class Dashboard extends Component {
   }
 
   reset = () => {
-      this.setState({
-        expand: false,
-        devices: new Map(),
-        toggleDevices: new Map(),
-        endpoints: new Map(),
-        unmatchedNumber: 0,
-        leftLineInAnimationProgress: 0,
-        rightLineInAnimationProgress: 0,
-      })
-      this.records = new Map();
-      this.unmatchedMap = new Map();
+    this.setState({
+      expand: false,
+      devices: new Map(),
+      toggleDevices: new Map(),
+      endpoints: new Map(),
+      unmatchedNumber: 0,
+      leftLineInAnimationProgress: 0,
+      rightLineInAnimationProgress: 0,
+    })
+    this.records = new Map();
+    this.unmatchedMap = new Map();
+  }
+
+  encodeKustoQuery = (query) => {
+    let s1 = query + "\n";
+    let s2 = gzip.zip(s1);
+    let s3 = String.fromCharCode(...s2);
+    let s4 = btoa(s3);
+    return util.format(this.kustoLinkTemplate, encodeURIComponent(s4));
+  }
+
+  // type 0 all devices, 1 one device, 2 endpoint
+  getKustoStatementForAvg = (start, end, type, id) => {
+    let condition;
+    if (type === 0) {
+      condition = `'"deviceId"'`;
+    } else if (type === 1) {
+      condition = `'"deviceId":"${id}"'`;
+    } else if (type === 2) {
+      condition = `'"endpointName":"${id}"'`;
+    }
+
+    return `customEvents | where timestamp >= datetime('${start.toISOString()}') and timestamp <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition}`;
+  }
+
+  getKustoStatementForSingleRecord = (correlationId) => {
+    return `customEvents | where customDimensions.correlationId contains '${correlationId}'`;
+  }
+
+  openLinkInNewPage = (link) => {
+    window.open(link);
   }
 
   render() {
@@ -590,7 +674,7 @@ class Dashboard extends Component {
         // willLeave={this.willLeave.bind(null, b1y)}
         willEnter={this.willEnterNumber.bind(null, ch)}>
         {
-          function (styles) {
+          (styles) => {
             return <Group>
               {styles.map(style =>
                 <Group key={style.data.name}>
@@ -601,6 +685,11 @@ class Dashboard extends Component {
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
                     text={`Avg: ${style.data.avg.toFixed(0)} ms`}
+                    onMouseEnter={this.changeCursorToPointer}
+                    onMouseLeave={this.changeCursorToDefault}
+                    onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                      this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), styles[0].data.name === 'All Devices' ? 0 : 1, style.data.name)
+                    ))}
                   />
                   <Text
                     x={leftLinex1 + 10 + 75}
@@ -609,6 +698,11 @@ class Dashboard extends Component {
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
                     text={`Max: ${style.data.max.toFixed(0)} ms`}
+                    onMouseEnter={this.changeCursorToPointer}
+                    onMouseLeave={this.changeCursorToDefault}
+                    onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                      this.getKustoStatementForSingleRecord(style.data.maxId.substring(8,16))
+                    ))}
                   />
                   <Text
                     x={leftLinex1 + 10 + 150}
@@ -616,7 +710,7 @@ class Dashboard extends Component {
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
-                    text={`Num: ${style.data.messageCount.toFixed(0)}`}
+                    text={`Count: ${style.data.messageCount.toFixed(0)}`}
                   />
                 </Group>
               )}
@@ -747,7 +841,7 @@ class Dashboard extends Component {
             // willLeave={this.willLeave.bind(null, b1y)}
             willEnter={this.willEnterNumber.bind(null, ch)}>
             {
-              function (styles) {
+              (styles) => {
                 return <Group>
                   {styles.map(style =>
                     <Group key={style.data.name}>
@@ -757,6 +851,11 @@ class Dashboard extends Component {
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
                         text={`Avg: ${style.data.avg.toFixed(0)} ms`}
+                        onMouseEnter={this.changeCursorToPointer}
+                        onMouseLeave={this.changeCursorToDefault}
+                        onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                          this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), 2, style.data.name)
+                        ))}
                       />
                       <Text
                         x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 75}
@@ -764,13 +863,18 @@ class Dashboard extends Component {
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
                         text={`Max: ${style.data.max.toFixed(0)} ms`}
+                        onMouseEnter={this.changeCursorToPointer}
+                        onMouseLeave={this.changeCursorToDefault}
+                        onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                          this.getKustoStatementForSingleRecord(style.data.maxId.substring(8,16))
+                        ))}
                       />
                       <Text
                         x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 150}
                         y={style.style.y + (style.style.height - tfs) / 2}
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
-                        text={`Num: ${style.data.messageCount.toFixed(0)}`}
+                        text={`Count: ${style.data.messageCount.toFixed(0)}`}
                       />
                     </Group>
                   )}
