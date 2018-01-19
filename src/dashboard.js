@@ -945,7 +945,7 @@ class Dashboard extends Component {
               y={btph + btph + 10 + btph + 10 + 10}
               fontSize={18}
               height={18}
-              text={`an hour`}
+              text={`60 minutes`}
               onMouseEnter={this.changeCursorToPointer}
               onMouseLeave={this.changeCursorToDefault}
               onClick={this.changeTimeSpan.bind(null, 60)}
