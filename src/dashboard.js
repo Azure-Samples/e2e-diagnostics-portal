@@ -75,7 +75,7 @@ class Dashboard extends Component {
         name: 'All Devices',
         avg: 0,
         max: 0,
-        maxId: undefined,
+        maxId: "",
         avgSize: 0,
         messageCount: 0,
       };
@@ -84,7 +84,7 @@ class Dashboard extends Component {
 
       let toggleDeviceCount = 0;
       let toggleDeviceMax = 0;
-      let toggleDeviceMaxId = undefined;
+      let toggleDeviceMaxId = "";
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
       let p1 = performance.now();
@@ -92,6 +92,7 @@ class Dashboard extends Component {
         if (!records.has(item.correlationId)) {
           let correlationPrefix = item.correlationId.substring(8, 16);
           item.durationMs = parseFloat(item.durationMs);
+          item.time = new Date(item.time);
           try {
             item.properties = JSON.parse(item.properties);
           } catch (e) {
@@ -142,9 +143,6 @@ class Dashboard extends Component {
               }
               devices.set(item.properties.deviceId, value);
             }
-            toggleDeviceCount++;
-            toggleDeviceSum += item.durationMs;
-            toggleDeviceSumSize += item.properties.messageSize;
 
             if (!unmatched.has(correlationPrefix)) {
               unmatched.set(correlationPrefix, true);
@@ -159,21 +157,20 @@ class Dashboard extends Component {
       let endpointKeysToDelete = [];
       let updateMaxDevicesMap = new Map();
       let updateMaxEndpointsMap = new Map();
-
       for (let [k, v] of records) {
         if (v.time < startDate || v.time > endDate) {
           let correlationPrefix = v.correlationId.substring(8, 16);
           unmatched.delete(correlationPrefix);
           recordKeysToDelete.push(k);
-          if (item.operationName === 'DiagnosticIoTHubRouting') {
+          if (v.operationName === 'DiagnosticIoTHubRouting') {
             let value = endpoints.get(v.properties.endpointName);
             if (value.messageCount === 1) {
               endpointKeysToDelete.push(value.name);
               value.messageCount = 0;
               endpoints.set(v.properties.endpointName, value);
             } else {
-              if(value.max === v.max) {
-                value.maxId = undefined;
+              if (value.max === v.max) {
+                value.maxId = "";
                 value.max = 0;
                 updateMaxEndpointsMap.set(value.name, true);
               }
@@ -181,15 +178,15 @@ class Dashboard extends Component {
               value.messageCount--;
               endpoints.set(v.properties.endpointName, value);
             }
-          } else if (item.operationName === 'DiagnosticIoTHubIngress') {
+          } else if (v.operationName === 'DiagnosticIoTHubIngress') {
             let value = devices.get(v.properties.deviceId);
             if (value.messageCount === 1) {
               deviceKeysToDelete.push(value.name);
               value.messageCount = 0;
               devices.set(v.properties.deviceId, value);
             } else {
-              if(value.max === v.max) {
-                value.maxId = undefined;
+              if (value.max === v.max) {
+                value.maxId = "";
                 value.max = 0;
                 updateMaxDevicesMap.set(value.name, true);
               }
@@ -197,16 +194,14 @@ class Dashboard extends Component {
               value.messageCount--;
               devices.set(v.properties.deviceId, value);
             }
-            toggleDeviceCount--;
-            toggleDeviceSum -= v.durationMs;
           }
         }
       }
 
       for (let [k, v] of records) {
         if (v.operationName === 'DiagnosticIoTHubRouting') {
-          if(updateMaxEndpointsMap.has(v.properties.endpointName)) {
-            if(v.durationMs > endpoints.get(v.properties.endpointName).max) {
+          if (updateMaxEndpointsMap.has(v.properties.endpointName)) {
+            if (v.durationMs > endpoints.get(v.properties.endpointName).max) {
               let ep = endpoints.get(v.properties.endpointName);
               ep.max = v.durationMs;
               ep.maxId = v.correlationId;
@@ -215,24 +210,27 @@ class Dashboard extends Component {
           }
         }
         else if (v.operationName === 'DiagnosticIoTHubIngress') {
-          if(updateMaxDevicesMap.has(v.properties.deviceId)) {
-            if(v.durationMs > devices.get(v.properties.deviceId).max) {
+          if (updateMaxDevicesMap.has(v.properties.deviceId)) {
+            if (v.durationMs > devices.get(v.properties.deviceId).max) {
               let ep = devices.get(v.properties.deviceId);
               ep.max = v.durationMs;
               ep.maxId = v.correlationId;
               devices.set(v.properties.deviceId, ep);
             }
           }
-          if(v.durationMs > toggleDeviceMax) {
+          if (v.durationMs > toggleDeviceMax) {
             toggleDeviceMax = v.durationMs;
             toggleDeviceMaxId = v.correlationId;
           }
+          toggleDeviceCount++;
+          toggleDeviceSum += v.durationMs;
+          toggleDeviceSumSize += v.properties.messageSize;
         }
       }
 
-      toggleDevice.avg = (toggleDevice.avg * toggleDevice.messageCount + toggleDeviceSum) / (toggleDevice.messageCount + toggleDeviceCount);
-      toggleDevice.avgSize = (toggleDevice.avgSize * toggleDevice.messageCount + toggleDeviceSumSize) / (toggleDevice.messageCount + toggleDeviceCount);
-      toggleDevice.messageCount += toggleDeviceCount;
+      toggleDevice.avg = toggleDeviceSum / toggleDeviceCount;
+      toggleDevice.avgSize = toggleDeviceSumSize / toggleDeviceCount;
+      toggleDevice.messageCount = toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
       toggleDevice.maxId = toggleDeviceMaxId;
       toggleDeviceMap.set('All Devices', toggleDevice);
@@ -701,7 +699,7 @@ class Dashboard extends Component {
                     onMouseEnter={this.changeCursorToPointer}
                     onMouseLeave={this.changeCursorToDefault}
                     onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                      this.getKustoStatementForSingleRecord(style.data.maxId.substring(8,16))
+                      this.getKustoStatementForSingleRecord(style.data.maxId.substring(8, 16))
                     ))}
                   />
                   <Text
@@ -866,7 +864,7 @@ class Dashboard extends Component {
                         onMouseEnter={this.changeCursorToPointer}
                         onMouseLeave={this.changeCursorToDefault}
                         onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                          this.getKustoStatementForSingleRecord(style.data.maxId.substring(8,16))
+                          this.getKustoStatementForSingleRecord(style.data.maxId.substring(8, 16))
                         ))}
                       />
                       <Text
