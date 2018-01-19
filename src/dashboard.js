@@ -23,13 +23,13 @@ class Dashboard extends Component {
       unmatchedNumber: 0,
       leftLineInAnimationProgress: 0,
       rightLineInAnimationProgress: 0,
+      spanInMinutes: 5,
     };
     this.records = new Map();
     this.unmatchedMap = new Map();
     this.initDate = null;
     this.queryMetricSpanInSeconds = 3;
     this.queryDeviceSpanInSeconds = 2;
-    this.spanInMinutes = 5;
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
     this.startOfTimestamp = new Date('2018-01-17T08:00:00Z');
@@ -49,7 +49,7 @@ class Dashboard extends Component {
 
   refresh = (firstCall, callback) => {
     let end = (new Date() - this.initDate) / 1000;
-    let start = firstCall ? end - this.spanInMinutes * 60 : end - this.queryMetricSpanInSeconds;
+    let start = firstCall ? end - this.state.spanInMinutes * 60 : end - this.queryMetricSpanInSeconds;
     let records = this.records;
     fetch('/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
@@ -66,7 +66,7 @@ class Dashboard extends Component {
 
       let startDate = new Date(this.startOfTimestamp.getTime());
       let endDate = new Date(this.startOfTimestamp.getTime());
-      startDate.setSeconds(startDate.getSeconds() + start - this.spanInMinutes * 60);
+      startDate.setSeconds(startDate.getSeconds() + start - this.state.spanInMinutes * 60);
       endDate.setSeconds(endDate.getSeconds() + end);
 
       let toggleDeviceCount = 0;
@@ -187,8 +187,8 @@ class Dashboard extends Component {
         endpoints.delete(key);
       }
 
-      for(let [k,v] of this.records) {
-        if(k.includes('bb333237')) {
+      for (let [k, v] of this.records) {
+        if (k.includes('bb333237')) {
           console.log(v);
         }
       }
@@ -368,28 +368,37 @@ class Dashboard extends Component {
 
   render() {
     let ff = "Segoe UI";
-    let sidebar = 50;
+    let leftPadding = 100;
+    let rightPadding = 400;
+    let timePicker = 200;
     let ch = window.innerHeight;
-    let cw = window.innerWidth - sidebar;
-    let bw = cw * 0.2222;
-    let bw_small = bw * 0.75;
+    let cw = window.innerWidth - leftPadding - rightPadding;
+    if (cw > 1422) {
+      let space = cw - 1422;
+      leftPadding += space / 2;
+      rightPadding += space / 2;
+      cw -= space;
+    }
+    let bw = cw * 0.2222 * 0.9;
+    let bw_small = bw * 0.8;
+    let lineSpace = (cw - bw * 2 - bw_small) / 2;
     let bh = 100;
     let b2h = 120;
-    let b1x = 50;
+    let b1x = leftPadding;
     let b1y = ch / 2 - bh / 2;
-    let b2x = cw / 2 - bw / 2;
-    let b3x = cw - b1x - bw_small;
+    let b2x = leftPadding + bw + lineSpace;
+    let b3x = b2x + bw + lineSpace;
     let tfs = 25;
     let t2fs = 15;
     let lw = 50;
 
-    let leftLinex1 = b1x + (this.state.expand ? bw_small : bw * 0.9);
+    let leftLinex1 = b1x + bw;
     let leftLinex3 = b2x;
     let liney2 = b1y;
     let rightLinex1 = b2x + bw;
     let rightLinex3 = b3x;
 
-    this.shape = { ff, sidebar, ch, cw, bw, bw_small, bh, b2h, b1x, b1y, b2x, b3x, tfs, t2fs, lw, leftLinex1, leftLinex3, liney2, rightLinex1, rightLinex3 };
+    this.shape = { ff, ch, cw, bw, bw_small, bh, b2h, b1x, b1y, b2x, b3x, tfs, t2fs, lw, leftLinex1, leftLinex3, liney2, rightLinex1, rightLinex3 };
 
     let progress;
     if (this.state.leftLineInAnimationProgress >= 2) {
@@ -417,11 +426,10 @@ class Dashboard extends Component {
         {
           (styles) => {
             return <Group>
-
               {styles.map(style => <Group key={style.data.name}><Rect
                 x={b1x}
                 y={style.style.y}
-                width={this.state.expand ? bw_small : bw * 0.9}
+                width={bw}
                 height={style.style.height}
                 opacity={style.style.opacity}
                 fill={"#fff"}
@@ -470,7 +478,7 @@ class Dashboard extends Component {
               </Group>)}
               <Group>
                 <Rect
-                  x={this.state.expand ? b1x + bw_small - 20 : b1x + bw * 0.9 - tfs}
+                  x={this.state.expand ? b1x + bw_small - 20 : b1x + bw - tfs}
                   y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7) / 2}
                   height={tfs}
                   width={tfs}
@@ -489,7 +497,7 @@ class Dashboard extends Component {
                   }}
                 />
                 <Path
-                  x={this.state.expand ? b1x + bw_small - 20 : b1x + bw * 0.9 - tfs}
+                  x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs}
                   y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7) / 2}
                   height={tfs}
                   fill="rgba(0,0,0,0.9)"
@@ -579,7 +587,7 @@ class Dashboard extends Component {
     </Group>;
 
     return (
-      <Stage ref={input => { this.stageRef = input; }} width={cw} height={ch}>
+      <Stage ref={input => { this.stageRef = input; }} width={window.innerWidth} height={window.innerHeight}>
         <Layer>
           {devices}
           <Rect
