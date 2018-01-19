@@ -48,6 +48,10 @@ class Dashboard extends Component {
   }
 
   refresh = (firstCall, callback) => {
+    if(firstCall) {
+      this.initDate = new Date();
+      this.reset();
+    }
     let end = (new Date() - this.initDate) / 1000;
     let start = firstCall ? end - this.state.spanInMinutes * 60 : end - this.queryMetricSpanInSeconds;
     let records = this.records;
@@ -214,8 +218,6 @@ class Dashboard extends Component {
   }
 
   componentDidMount() {
-    this.initDate = new Date();
-
     this.refresh(true, () => {
       this.leftLineAnimationHandler(1);
       setTimeout(() => {
@@ -366,6 +368,57 @@ class Dashboard extends Component {
     }
   }
 
+  changeCursorToPointer = () => {
+    if (this.stageRef && this.stageRef._stage && this.stageRef._stage.content && this.stageRef._stage.content.style) {
+      this.stageRef._stage.content.style.cursor = 'pointer';
+    }
+  }
+
+  changeCursorToDefault = () => {
+    if (this.stageRef && this.stageRef._stage && this.stageRef._stage.content && this.stageRef._stage.content.style) {
+      this.stageRef._stage.content.style.cursor = 'default';
+    }
+  }
+
+  changeTimeSpan = (span) => {
+    if (this.state.spanInMinutes !== span) {
+      this.setState({
+        spanInMinutes: span
+      }, () => {
+        this.refresh(true, () => {
+          this.leftLineAnimationHandler(1);
+          setTimeout(() => {
+            this.leftLineAnimationHandler(2);
+          }, 600)
+          setTimeout(() => {
+            this.leftLineAnimationHandler(3);
+          }, 1200)
+          this.rightLineAnimationHandler(1);
+          setTimeout(() => {
+            this.rightLineAnimationHandler(2);
+          }, 600)
+          setTimeout(() => {
+            this.rightLineAnimationHandler(3);
+          }, 1200)
+        });
+      });
+    }
+  }
+
+  reset = () => {
+      this.setState({
+        expand: false,
+        devices: new Map(),
+        toggleDevices: new Map(),
+        endpoints: new Map(),
+        unmatchedNumber: 0,
+        leftLineInAnimationProgress: 0,
+        rightLineInAnimationProgress: 0,
+      })
+      this.records = new Map();
+      this.unmatchedMap = new Map();
+  }
+
   render() {
     let ff = "Segoe UI";
     let leftPadding = 100;
@@ -388,6 +441,9 @@ class Dashboard extends Component {
     let b1y = ch / 2 - bh / 2;
     let b2x = leftPadding + bw + lineSpace;
     let b3x = b2x + bw + lineSpace;
+    let btpw = 120;
+    let btph = 40;
+    let btpx = cw + leftPadding + (rightPadding - btpw) / 2;
     let tfs = 25;
     let t2fs = 15;
     let lw = 50;
@@ -400,16 +456,8 @@ class Dashboard extends Component {
 
     this.shape = { ff, ch, cw, bw, bw_small, bh, b2h, b1x, b1y, b2x, b3x, tfs, t2fs, lw, leftLinex1, leftLinex3, liney2, rightLinex1, rightLinex3 };
 
-    let progress;
-    if (this.state.leftLineInAnimationProgress >= 2) {
-      progress = spring(100, { stiffness: 60, damping: 15 });
-    } else if (this.state.leftLineInAnimationProgress <= -2) {
-      progress = spring(0, { stiffness: 60, damping: 15 });
-    } else {
-      progress = 0;
-    }
     let leftLineStyle = {
-      progress
+      progress: this.state.leftLineInAnimationProgress >= 2 ? spring(100, { stiffness: 60, damping: 15 }) : 0
     };
     let rightLineStyle = {
       progress: this.state.rightLineInAnimationProgress >= 2 ? spring(100, { stiffness: 60, damping: 15 }) : 0
@@ -485,9 +533,7 @@ class Dashboard extends Component {
                   onClick={this.toggleExpand}
                   onMouseEnter={() => {
                     if (this.compressRef) this.compressRef.to({ fill: 'gray', duration: 0.3 });
-                    if (this.stageRef && this.stageRef._stage && this.stageRef._stage.content && this.stageRef._stage.content.style) {
-                      this.stageRef._stage.content.style.cursor = 'pointer';
-                    }
+
                   }}
                   onMouseLeave={() => {
                     if (this.compressRef) this.compressRef.to({ fill: 'rgba(0,0,0,0.9)', duration: 0.3 });
@@ -507,15 +553,11 @@ class Dashboard extends Component {
                   onClick={this.toggleExpand}
                   onMouseEnter={() => {
                     if (this.compressRef) this.compressRef.to({ fill: 'gray', duration: 0.3 });
-                    if (this.stageRef && this.stageRef._stage && this.stageRef._stage.content && this.stageRef._stage.content.style) {
-                      this.stageRef._stage.content.style.cursor = 'pointer';
-                    }
+                    this.changeCursorToPointer();
                   }}
                   onMouseLeave={() => {
                     if (this.compressRef) this.compressRef.to({ fill: 'rgba(0,0,0,0.9)', duration: 0.3 });
-                    if (this.stageRef && this.stageRef._stage && this.stageRef._stage.content && this.stageRef._stage.content.style) {
-                      this.stageRef._stage.content.style.cursor = 'default';
-                    }
+                    this.changeCursorToDefault();
                   }}
                   scale={{
                     x: 0.7,
@@ -590,63 +632,65 @@ class Dashboard extends Component {
       <Stage ref={input => { this.stageRef = input; }} width={window.innerWidth} height={window.innerHeight}>
         <Layer>
           {devices}
-          <Rect
-            x={b2x}
-            y={b1y - b2h * 1.7 / 2}
-            width={bw}
-            height={b2h * 1.7}
-            fill={"#fff"}
-            shadowBlur={5}
-            cornerRadius={5}
-            onClick={this.toggleExpand}
-          />
-          <KonvaImage
-            x={b2x + 20}
-            y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2}
-            image={this.iotHubImage}
-            width={lw * 1.3}
-            height={lw * 1.3}
-          />
-          <Text
-            x={b2x + 20 + lw * 1.3 + 20}
-            y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2}
-            fontSize={35}
-            height={35}
-            text="IoT Hub"
-          />
-          <Text
-            x={b2x + 20}
-            y={b1y - b2h * 1.7 / 2 + b2h}
-            fontSize={t2fs}
-            height={t2fs}
-            fill={"rgba(0, 0, 0, 0.65)"}
-            text={"Device connected: " + this.state.connectedDevices || 0}
-          />
+          <Group>
+            <Rect
+              x={b2x}
+              y={b1y - b2h * 1.7 / 2}
+              width={bw}
+              height={b2h * 1.7}
+              fill={"#fff"}
+              shadowBlur={5}
+              cornerRadius={5}
+              onClick={this.toggleExpand}
+            />
+            <KonvaImage
+              x={b2x + 20}
+              y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2}
+              image={this.iotHubImage}
+              width={lw * 1.3}
+              height={lw * 1.3}
+            />
+            <Text
+              x={b2x + 20 + lw * 1.3 + 20}
+              y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2}
+              fontSize={35}
+              height={35}
+              text="IoT Hub"
+            />
+            <Text
+              x={b2x + 20}
+              y={b1y - b2h * 1.7 / 2 + b2h}
+              fontSize={t2fs}
+              height={t2fs}
+              fill={"rgba(0, 0, 0, 0.65)"}
+              text={"Device connected: " + this.state.connectedDevices || 0}
+            />
 
-          <Text
-            x={b2x + 20}
-            y={b1y - b2h * 1.7 / 2 + b2h + t2fs + 5}
-            fontSize={t2fs}
-            height={t2fs}
-            fill={"rgba(0, 0, 0, 0.65)"}
-            text={"Device registered: " + this.state.registeredDevices || 0}
-          />
+            <Text
+              x={b2x + 20}
+              y={b1y - b2h * 1.7 / 2 + b2h + t2fs + 5}
+              fontSize={t2fs}
+              height={t2fs}
+              fill={"rgba(0, 0, 0, 0.65)"}
+              text={"Device registered: " + this.state.registeredDevices || 0}
+            />
 
 
-          <Text
-            x={b2x + 20}
-            y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 2 + 10}
-            fontSize={t2fs}
-            height={t2fs}
-            fill={"rgba(0, 0, 0, 0.65)"}
-            text={"Unmatched messages: " + this.state.unmatchedNumber}
-          />
+            <Text
+              x={b2x + 20}
+              y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 2 + 10}
+              fontSize={t2fs}
+              height={t2fs}
+              fill={"rgba(0, 0, 0, 0.65)"}
+              text={"Unmatched messages: " + this.state.unmatchedNumber}
+            />
+          </Group>
 
           <TransitionMotion
             // defaultStyles={this.getDefaultStyles(b1y)}
             styles={this.getStyles(bh, b1y, this.state.endpoints, this.state.rightLineInAnimationProgress, 1)}
-            willLeave={this.willLeave.bind(null, b1y)}
-            willEnter={this.willEnter.bind(null, b1y)}>
+            // willLeave={this.willLeave.bind(null, b1y)}
+            willEnter={this.willEnterNumber.bind(null, b1y)}>
 
             {
               function (styles) {
@@ -702,7 +746,7 @@ class Dashboard extends Component {
           <TransitionMotion
             // defaultStyles={this.getDefaultNumberStyles(b1y, bh)}
             styles={this.getStyles(bh, b1y - 5, this.state.endpoints, this.state.rightLineInAnimationProgress, 3)}
-            willLeave={this.willLeave.bind(null, b1y)}
+            // willLeave={this.willLeave.bind(null, b1y)}
             willEnter={this.willEnterNumber.bind(null, ch)}>
             {
               function (styles) {
@@ -736,6 +780,77 @@ class Dashboard extends Component {
               }
             }
           </TransitionMotion>
+
+          <Group>
+            <Rect
+              x={btpx}
+              y={btph}
+              width={btpw}
+              height={btph}
+              fill={this.state.spanInMinutes === 5 ? "#e6e6e6" : "#fff"}
+              shadowBlur={2}
+              cornerRadius={2}
+              onMouseEnter={this.changeCursorToPointer}
+              onMouseLeave={this.changeCursorToDefault}
+              onClick={this.changeTimeSpan.bind(null, 5)}
+            />
+            <Text
+              x={btpx + 15}
+              y={btph + 10}
+              fontSize={18}
+              height={18}
+              text={`5 minutes`}
+              onMouseEnter={this.changeCursorToPointer}
+              onMouseLeave={this.changeCursorToDefault}
+              onClick={this.changeTimeSpan.bind(null, 5)}
+            />
+
+            <Rect
+              x={btpx}
+              y={btph + btph + 10}
+              width={btpw}
+              height={btph}
+              fill={this.state.spanInMinutes === 20 ? "#e6e6e6" : "#fff"}
+              shadowBlur={2}
+              cornerRadius={2}
+              onMouseEnter={this.changeCursorToPointer}
+              onMouseLeave={this.changeCursorToDefault}
+              onClick={this.changeTimeSpan.bind(null, 20)}
+            />
+            <Text
+              x={btpx + 15}
+              y={btph + btph + 10 + 10}
+              fontSize={18}
+              height={18}
+              text={`20 minutes`}
+              onMouseEnter={this.changeCursorToPointer}
+              onMouseLeave={this.changeCursorToDefault}
+              onClick={this.changeTimeSpan.bind(null, 20)}
+            />
+
+            <Rect
+              x={btpx}
+              y={btph + btph + 10 + btph + 10}
+              width={btpw}
+              height={btph}
+              fill={this.state.spanInMinutes === 60 ? "#e6e6e6" : "#fff"}
+              shadowBlur={2}
+              cornerRadius={2}
+              onMouseEnter={this.changeCursorToPointer}
+              onMouseLeave={this.changeCursorToDefault}
+              onClick={this.changeTimeSpan.bind(null, 60)}
+            />
+            <Text
+              x={btpx + 15}
+              y={btph + btph + 10 + btph + 10 + 10}
+              fontSize={18}
+              height={18}
+              text={`an hour`}
+              onMouseEnter={this.changeCursorToPointer}
+              onMouseLeave={this.changeCursorToDefault}
+              onClick={this.changeTimeSpan.bind(null, 60)}
+            />
+          </Group>
         </Layer>
       </Stage>
     );
