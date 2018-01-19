@@ -236,10 +236,10 @@ class Dashboard extends Component {
     });
 
 
-    // this.refreshInterval = setInterval(()=>{
-    //   this.refresh(false, ()=>{
-    //   });
-    // },this.queryMetricSpanInSeconds * 1000)
+    this.refreshInterval = setInterval(()=>{
+      this.refresh(false, ()=>{
+      });
+    },this.queryMetricSpanInSeconds * 1000)
 
     this.getDeviceNumber();
     this.getDeviceNumberInterval = setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
@@ -526,20 +526,18 @@ class Dashboard extends Component {
               </Group>)}
               <Group>
                 <Rect
-                  x={this.state.expand ? b1x + bw_small - 20 : b1x + bw - tfs}
+                  x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs}
                   y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7) / 2}
                   height={tfs}
                   width={tfs}
                   onClick={this.toggleExpand}
                   onMouseEnter={() => {
                     if (this.compressRef) this.compressRef.to({ fill: 'gray', duration: 0.3 });
-
+                    this.changeCursorToPointer();
                   }}
                   onMouseLeave={() => {
                     if (this.compressRef) this.compressRef.to({ fill: 'rgba(0,0,0,0.9)', duration: 0.3 });
-                    if (this.stageRef && this.stageRef._stage && this.stageRef._stage.content && this.stageRef._stage.content.style) {
-                      this.stageRef._stage.content.style.cursor = 'default';
-                    }
+                    this.changeCursorToDefault();
                   }}
                 />
                 <Path
