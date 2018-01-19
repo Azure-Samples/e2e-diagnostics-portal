@@ -17,14 +17,15 @@ class Dashboard extends Component {
       expand: false,
       connectedDevices: undefined,
       registeredDevices: undefined,
-      unmatchedMessageNumber: 0,
       devices: new Map(),
       toggleDevices: new Map(),
       endpoints: new Map(),
+      unmatchedNumber: 0,
       leftLineInAnimationProgress: 0,
       rightLineInAnimationProgress: 0,
     };
     this.records = new Map();
+    this.unmatchedMap = new Map();
     this.initDate = null;
     this.queryMetricSpanInSeconds = 3;
     this.queryDeviceSpanInSeconds = 2;
@@ -54,6 +55,7 @@ class Dashboard extends Component {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
       let endpoints = this.state.endpoints;
       let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;
+      let unmatched = this.unmatchedMap;
       let toggleDevice = toggleDeviceMap.get('All Devices') || {
         name: 'All Devices',
         avg: 0,
@@ -75,6 +77,7 @@ class Dashboard extends Component {
         item.durationMs = parseFloat(item.durationMs);
         item.properties = JSON.parse(item.properties);
         item.properties.messageSize = parseFloat(item.properties.messageSize);
+        let correlationPrefix = item.correlationId.substring(8, 16);
         if (!records.has(item.correlationId)) {
           records.set(item.correlationId, item);
           if (item.operationName === 'DiagnosticIoTHubRouting') {
@@ -95,6 +98,7 @@ class Dashboard extends Component {
               }
               endpoints.set(item.properties.endpointName, value);
             }
+            unmatched.set(correlationPrefix, false);
           } else if (item.operationName === 'DiagnosticIoTHubIngress') {
             if (devices.has(item.properties.deviceId)) {
               let value = devices.get(item.properties.deviceId);
@@ -119,6 +123,10 @@ class Dashboard extends Component {
             toggleDeviceSum += item.durationMs;
             toggleDeviceSumSize += item.properties.messageSize;
             if (item.durationMs > toggleDeviceMax) toggleDeviceMax = item.durationMs;
+
+            if (!unmatched.has(correlationPrefix)) {
+              unmatched.set(correlationPrefix, true);
+            }
           }
 
         }
@@ -130,6 +138,8 @@ class Dashboard extends Component {
 
       for (let [k, v] of records) {
         if (v.time < startDate || v.time > endDate) {
+          let correlationPrefix = v.correlationId.substring(8, 16);
+          unmatched.delete(correlationPrefix);
           recordKeysToDelete.push(k);
           if (item.operationName === 'DiagnosticIoTHubRouting') {
             let value = endpoints.get(v.properties.endpointName);
@@ -177,8 +187,19 @@ class Dashboard extends Component {
         endpoints.delete(key);
       }
 
+      for(let [k,v] of this.records) {
+        if(k.includes('bb333237')) {
+          console.log(v);
+        }
+      }
+      let unmatchedNumber = 0;
+      for (let v of unmatched.values()) {
+        if (v) unmatchedNumber++;
+      }
+
       let stateToSet = {
         endpoints,
+        unmatchedNumber,
       };
       if (this.state.expand) {
         stateToSet.devices = devices;
@@ -610,7 +631,7 @@ class Dashboard extends Component {
             fontSize={t2fs}
             height={t2fs}
             fill={"rgba(0, 0, 0, 0.65)"}
-            text="Unmatched messages: 10"
+            text={"Unmatched messages: " + this.state.unmatchedNumber}
           />
 
           <TransitionMotion
