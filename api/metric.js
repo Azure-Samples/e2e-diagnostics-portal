@@ -2,10 +2,11 @@ var express = require('express');
 var router = express.Router();
 var request = require('request');
 var node_util = require('util');
+var config = require('../config');
 // var Util = require('../util/util');
 // var apicache = require('apicache');
 
-let startOfTimestamp = new Date('2018-01-19T07:17:00Z');
+let startOfTimestamp = new Date(config.startTime);
 var restUrl = 'https://api.applicationinsights.io/v1/apps/%s/events/customEvents?%24serach=E2EDIAGNOSTICS&%24filter=timestamp%20gt%20%s%20and%20timestamp%20lt%20%s&%24select=customDimensions&%24count=true&%24top=10000';
 // var e2ePath = 'customEvents/E2EDIAGNOSTICS';
 var kustoPath = 'https://analytics.applicationinsights.io%s/components/%s';

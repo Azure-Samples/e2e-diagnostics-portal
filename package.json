@@ -1,5 +1,5 @@
 {
-  "name": "sz-crawler",
+  "name": "e2e-diagnostic-portal",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,6 +12,7 @@
     "azure-iothub": "^1.2.3",
     "body-parser": "^1.18.2",
     "express": "^4.16.2",
+    "gzip-js": "^0.3.2",
     "iconv-lite": "^0.4.19",
     "jsdom": "^11.5.1",
     "konva": "^1.7.6",
@@ -43,12 +44,5 @@
     "webpack": "^3.10.0",
     "webpack-dev-server": "^2.9.7",
     "webpack-node-externals": "^1.6.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://michaeljqzq@bitbucket.org/michaeljqzq/sz-crawler.git"
-  },
-  "author": "",
-  "license": "ISC",
-  "homepage": "https://bitbucket.org/michaeljqzq/sz-crawler#readme"
+  }
 }

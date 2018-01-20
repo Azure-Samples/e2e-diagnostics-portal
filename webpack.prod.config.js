@@ -66,18 +66,18 @@ module.exports = [
   },
 
   // API
-  // {
-  //   target: 'node',
-  //   externals: [nodeExternals()],
-  //   entry: ['babel-polyfill', './api/index.js'],
-  //   output: {
-  //     filename: 'api.js',
-  //     path: path.resolve(__dirname, 'build')
-  //   },
-  //   module: {
-  //     rules: [
-  //       { test: /\.js$/, use: 'babel-loader' } // exclude: /(_project_config|_project_credential)\.js$/
-  //     ]
-  //   }
-  // }
+  {
+    target: 'node',
+    externals: [nodeExternals()],
+    entry: ['babel-polyfill', './api/index.js'],
+    output: {
+      filename: 'api.js',
+      path: path.resolve(__dirname, 'build')
+    },
+    module: {
+      rules: [
+        { test: /\.js$/, use: 'babel-loader' } // exclude: /(_project_config|_project_credential)\.js$/
+      ]
+    }
+  }
 ];

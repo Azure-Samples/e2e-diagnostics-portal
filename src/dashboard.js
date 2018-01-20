@@ -4,6 +4,7 @@ import Device from './device';
 import gzip from 'gzip-js';
 import { Motion, TransitionMotion, spring, presets } from 'react-motion';
 import { Stage, Layer, Group, Rect, Text, Image as KonvaImage, Path, Line } from 'react-konva';
+import config from '../config';
 import util from 'util';
 import SvgChip from '../asset/microchip.svg';
 import PngIotHub from '../asset/iothub.png';
@@ -34,12 +35,12 @@ class Dashboard extends Component {
     this.queryDeviceSpanInSeconds = 2;
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
-    this.startOfTimestamp = new Date('2018-01-19T07:17:00Z');
+    this.startOfTimestamp = new Date(config.startTime);
     this.kustoLinkTemplate = "https://analytics.applicationinsights.io/subscriptions/faab228d-df7a-4086-991e-e81c4659d41a/resourcegroups/mj-prod/components/amai?q=%s&apptype=other&timespan=P1D";
   }
 
   getDeviceNumber = () => {
-    fetch('/api/device').then(results => results.json()).then(data => {
+    fetch(config.api + '/api/device').then(results => results.json()).then(data => {
       this.setState({
         connectedDevices: data.connected,
         registeredDevices: data.registered,
@@ -66,7 +67,7 @@ class Dashboard extends Component {
     let end = (new Date() - this.initDate) / 1000;
     let start = firstCall ? end - this.state.spanInMinutes * 60 : end - this.queryMetricSpanInSeconds;
     let records = this.records;
-    fetch('/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
+    fetch(config.api + '/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
       let endpoints = this.state.endpoints;
       let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;
