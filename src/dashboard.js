@@ -61,7 +61,7 @@ class Dashboard extends Component {
 
   refresh = (firstCall, callback) => {
     if (firstCall) {
-      this.initDate = new Date();
+      
       this.reset();
     }
     let end = (new Date() - this.initDate) / 1000;
@@ -271,6 +271,7 @@ class Dashboard extends Component {
   }
 
   componentDidMount() {
+    this.initDate = new Date();
     this.refresh(true, () => {
       this.leftLineAnimationHandler(1);
       setTimeout(() => {
