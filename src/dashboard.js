@@ -61,7 +61,6 @@ class Dashboard extends Component {
 
   refresh = (firstCall, callback) => {
     if (firstCall) {
-      
       this.reset();
     }
     let end = (new Date() - this.initDate) / 1000;
@@ -102,6 +101,7 @@ class Dashboard extends Component {
           item.properties.messageSize = parseFloat(item.properties.messageSize);
           records.set(item.correlationId, item);
           if (item.operationName === 'DiagnosticIoTHubRouting') {
+            
             if (endpoints.has(item.properties.endpointName)) {
               let value = endpoints.get(item.properties.endpointName);
               if (item.durationMs > value.max) {
@@ -170,7 +170,7 @@ class Dashboard extends Component {
               value.messageCount = 0;
               endpoints.set(v.properties.endpointName, value);
             } else {
-              if (value.max === v.max) {
+              if (value.maxId === v.correlationId) {
                 value.maxId = "";
                 value.max = 0;
                 updateMaxEndpointsMap.set(value.name, true);
@@ -186,7 +186,7 @@ class Dashboard extends Component {
               value.messageCount = 0;
               devices.set(v.properties.deviceId, value);
             } else {
-              if (value.max === v.max) {
+              if (value.maxId === v.correlationId) {
                 value.maxId = "";
                 value.max = 0;
                 updateMaxDevicesMap.set(value.name, true);
@@ -197,6 +197,16 @@ class Dashboard extends Component {
             }
           }
         }
+      }
+
+      for (let key of recordKeysToDelete) {
+        records.delete(key);
+      }
+      for (let key of deviceKeysToDelete) {
+        devices.delete(key);
+      }
+      for (let key of endpointKeysToDelete) {
+        endpoints.delete(key);
       }
 
       for (let [k, v] of records) {
@@ -235,16 +245,6 @@ class Dashboard extends Component {
       toggleDevice.max = toggleDeviceMax;
       toggleDevice.maxId = toggleDeviceMaxId;
       toggleDeviceMap.set('All Devices', toggleDevice);
-
-      for (let key of recordKeysToDelete) {
-        records.delete(key);
-      }
-      for (let key of deviceKeysToDelete) {
-        devices.delete(key);
-      }
-      for (let key of endpointKeysToDelete) {
-        endpoints.delete(key);
-      }
 
       let unmatchedNumber = 0;
       for (let v of unmatched.values()) {
