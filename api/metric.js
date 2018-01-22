@@ -18,7 +18,7 @@ var restUrl = "https://api.applicationinsights.io/v1/apps/%s/query?timespan=P7D&
 // });
 
 router.get('/', function (req, res) {
-  var appId = '19097b20-3914-40c0-8dcb-d34d28fba47f';//Util.getAppId();
+  var appId = '28192abf-e335-4044-ae29-47bbfac72ddd';//Util.getAppId();
   if (!appId) {
     res.status(500).send("App id missing")
   }
@@ -27,7 +27,7 @@ router.get('/', function (req, res) {
   if (start == undefined || end == undefined) {
     res.status(500).send("start or end is not provided")
   }
-  var key = '6ceve7bthx67uzk2qydtfzlj622wl8sg46hl8y07';
+  var key = 'q5170hcg0hfz13zsngxxcykrezfvpvosrj7pzwll';
   let startDate = new Date(startOfTimestamp.getTime());
   let endDate = new Date(startOfTimestamp.getTime());
   startDate.setSeconds(startDate.getSeconds() + start);
