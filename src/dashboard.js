@@ -708,7 +708,7 @@ class Dashboard extends Component {
                     onMouseEnter={this.changeCursorToPointer}
                     onMouseLeave={this.changeCursorToDefault}
                     onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                      this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId.substring(8, 16))
+                      this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
                     ))}
                   />
                   <Text
@@ -873,7 +873,7 @@ class Dashboard extends Component {
                         onMouseEnter={this.changeCursorToPointer}
                         onMouseLeave={this.changeCursorToDefault}
                         onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                          this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId.substring(8, 16))
+                          this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
                         ))}
                       />
                       <Text
