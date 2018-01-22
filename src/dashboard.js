@@ -244,7 +244,9 @@ class Dashboard extends Component {
       toggleDevice.messageCount = toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
       toggleDevice.maxId = toggleDeviceMaxId;
-      toggleDeviceMap.set('All Devices', toggleDevice);
+      if(devices.size !== 0 ) {
+        toggleDeviceMap.set('All Devices', toggleDevice);
+      }
 
       let unmatchedNumber = 0;
       for (let v of unmatched.values()) {
