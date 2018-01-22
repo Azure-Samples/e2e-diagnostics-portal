@@ -495,8 +495,8 @@ class Dashboard extends Component {
     return `customEvents | where timestamp >= datetime('${start.toISOString()}') and timestamp <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition}`;
   }
 
-  getKustoStatementForSingleRecord = (correlationId) => {
-    return `customEvents | where customDimensions.correlationId contains '${correlationId}'`;
+  getKustoStatementForSingleRecord = (start,end,correlationId) => {
+    return `customEvents | where timestamp >= datetime('${start.toISOString()}') and timestamp <= datetime('${end.toISOString()}') and customDimensions.correlationId contains '${correlationId}'`;
   }
 
   openLinkInNewPage = (link) => {
@@ -701,7 +701,7 @@ class Dashboard extends Component {
                     onMouseEnter={this.changeCursorToPointer}
                     onMouseLeave={this.changeCursorToDefault}
                     onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                      this.getKustoStatementForSingleRecord(style.data.maxId.substring(8, 16))
+                      this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(),style.data.maxId.substring(8, 16))
                     ))}
                   />
                   <Text
@@ -866,7 +866,7 @@ class Dashboard extends Component {
                         onMouseEnter={this.changeCursorToPointer}
                         onMouseLeave={this.changeCursorToDefault}
                         onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                          this.getKustoStatementForSingleRecord(style.data.maxId.substring(8, 16))
+                          this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(),style.data.maxId.substring(8, 16))
                         ))}
                       />
                       <Text
