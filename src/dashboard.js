@@ -65,6 +65,7 @@ class Dashboard extends Component {
     }
     let end = (new Date() - this.initDate) / 1000;
     let start = firstCall ? end - this.state.spanInMinutes * 60 : end - this.queryMetricSpanInSeconds;
+    start -= 0.1; // to make timespan a little overlap
     let records = this.records;
     fetch(config.api + '/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
@@ -166,6 +167,7 @@ class Dashboard extends Component {
             let value = endpoints.get(v.properties.endpointName);
             if (value == undefined) {
               console.error('[E2E] Endpoint: ' + v.properties.endpointName + ' is undefined');
+              continue;
             }
             if (value.messageCount === 1) {
               endpointKeysToDelete.push(value.name);
@@ -185,6 +187,7 @@ class Dashboard extends Component {
             let value = devices.get(v.properties.deviceId);
             if (value == undefined) {
               console.error('[E2E] Device: ' + v.properties.deviceId + ' is undefined');
+              continue;
             }
             if (value.messageCount === 1) {
               deviceKeysToDelete.push(value.name);
@@ -521,21 +524,20 @@ class Dashboard extends Component {
       let space = cw - 1922;
       leftPadding += space / 2;
       rightPadding += space / 2;
-    }else {
+    } else {
       let space = 1922 - cw;
-      if(space > 300) space = 300;
+      if (space > 300) space = 300;
       leftPadding -= space / 5;
-      rightPadding -= space *4/5;
+      rightPadding -= space * 4 / 5;
     }
-    cw -= (leftPadding+rightPadding);
-    console.log(rightPadding)
+    cw -= (leftPadding + rightPadding);
     let bw = cw * 0.2222 * 0.9;
     let bw_small = bw * 0.8;
     let lineSpace = (cw - bw * 2 - bw_small) / 2;
     let bh = 100;
     let b2h = 120;
     let b1x = leftPadding;
-    let b1y = ch / 2 - bh / 2;
+    let b1y = ch / 2;
     let b2x = leftPadding + bw + lineSpace;
     let b3x = b2x + bw + lineSpace;
     let btpw = 120;

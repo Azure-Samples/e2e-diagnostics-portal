@@ -32,7 +32,6 @@ router.get('/', function (req, res) {
   let endDate = new Date(startOfTimestamp.getTime());
   startDate.setSeconds(startDate.getSeconds() + start);
   endDate.setSeconds(endDate.getSeconds() + end);
-  console.log(node_util.format(kustoQuery, startDate.toISOString(), endDate.toISOString()))
   request(node_util.format(restUrl, appId, encodeURIComponent(node_util.format(kustoQuery, startDate.toISOString(), endDate.toISOString()))), {
     headers: {
       "x-api-key": key
@@ -41,12 +40,19 @@ router.get('/', function (req, res) {
     if (err) {
       res.status(500).send(err.message);
     }
-    body = JSON.parse(body);
-    console.log(body)
-    let result = {};
-    // result.count = body['@odata.count'];
-    result.value = body.tables[0].rows.length === 0 ? [] : body.tables[0].rows.map(row => JSON.parse(row[0]));
-    res.json(result);
+    console.log(body);
+    try {
+      body = JSON.parse(body);
+      let result = {};
+      // result.count = body['@odata.count'];
+      result.value = body.tables[0].rows.length === 0 ? [] : body.tables[0].rows.map(row => JSON.parse(row[0]));
+      res.json(result);
+    } catch (e) {
+      res.json({
+        value: [],
+        error: e.message,
+      });
+    }
   });
 
   // var result = {};
