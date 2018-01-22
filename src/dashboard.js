@@ -499,11 +499,11 @@ class Dashboard extends Component {
       condition = `'"endpointName":"${id}"'`;
     }
 
-    return `customEvents | where timestamp >= datetime('${start.toISOString()}') and timestamp <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition}`;
+    return `customEvents | where timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('${start.toISOString()}') and todatetime(tostring(customDimensions['time'])) <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition}`;
   }
 
   getKustoStatementForSingleRecord = (start, end, correlationId) => {
-    return `customEvents | where timestamp >= datetime('${start.toISOString()}') and timestamp <= datetime('${end.toISOString()}') and customDimensions.correlationId contains '${correlationId}'`;
+    return `customEvents | where timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('${start.toISOString()}') and todatetime(tostring(customDimensions['time'])) <= datetime('${end.toISOString()}') and customDimensions.correlationId contains '${correlationId}'`;
   }
 
   openLinkInNewPage = (link) => {

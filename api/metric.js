@@ -7,9 +7,10 @@ var config = require('../config');
 // var apicache = require('apicache');
 
 let startOfTimestamp = new Date(config.startTime);
-var restUrl = 'https://api.applicationinsights.io/v1/apps/%s/events/customEvents?%24serach=E2EDIAGNOSTICS&%24filter=timestamp%20gt%20%s%20and%20timestamp%20lt%20%s&%24select=customDimensions&%24count=true&%24top=10000';
+var kustoQuery = `customEvents | where name == 'E2EDIAGNOSTICS' and timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('%s') and todatetime(tostring(customDimensions['time'])) <= datetime('%s') | project customDimensions`;
+var restUrl = "https://api.applicationinsights.io/v1/apps/%s/query?timespan=P7D&query=%s";
 // var e2ePath = 'customEvents/E2EDIAGNOSTICS';
-var kustoPath = 'https://analytics.applicationinsights.io%s/components/%s';
+// var kustoPath = 'https://analytics.applicationinsights.io%s/components/%s';
 /* GET home page. */
 
 // router.get('/kusto', function(req, res) {
@@ -31,7 +32,8 @@ router.get('/', function (req, res) {
   let endDate = new Date(startOfTimestamp.getTime());
   startDate.setSeconds(startDate.getSeconds() + start);
   endDate.setSeconds(endDate.getSeconds() + end);
-  request(node_util.format(restUrl, appId, encodeURIComponent(startDate.toISOString()), encodeURIComponent(endDate.toISOString())), {
+  console.log(node_util.format(kustoQuery, startDate.toISOString(), endDate.toISOString()))
+  request(node_util.format(restUrl, appId, encodeURIComponent(node_util.format(kustoQuery, startDate.toISOString(), endDate.toISOString()))), {
     headers: {
       "x-api-key": key
     }
@@ -40,9 +42,10 @@ router.get('/', function (req, res) {
       res.status(500).send(err.message);
     }
     body = JSON.parse(body);
+    console.log(body)
     let result = {};
-    result.count = body['@odata.count'];
-    result.value = body.value.map(v => v.customDimensions);
+    // result.count = body['@odata.count'];
+    result.value = body.tables[0].rows.length === 0 ? [] : body.tables[0].rows.map(row => JSON.parse(row[0]));
     res.json(result);
   });
 
