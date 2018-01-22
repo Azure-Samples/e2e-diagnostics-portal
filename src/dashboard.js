@@ -516,13 +516,19 @@ class Dashboard extends Component {
     let rightPadding = 400;
     let timePicker = 200;
     let ch = window.innerHeight;
-    let cw = window.innerWidth - leftPadding - rightPadding;
-    if (cw > 1422) {
-      let space = cw - 1422;
+    let cw = window.innerWidth - 50; // minus the width of sidebar
+    if (cw > 1922) {
+      let space = cw - 1922;
       leftPadding += space / 2;
       rightPadding += space / 2;
-      cw -= space;
+    }else {
+      let space = 1922 - cw;
+      if(space > 300) space = 300;
+      leftPadding -= space / 5;
+      rightPadding -= space *4/5;
     }
+    cw -= (leftPadding+rightPadding);
+    console.log(rightPadding)
     let bw = cw * 0.2222 * 0.9;
     let bw_small = bw * 0.8;
     let lineSpace = (cw - bw * 2 - bw_small) / 2;
