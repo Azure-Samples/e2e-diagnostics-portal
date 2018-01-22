@@ -46,7 +46,7 @@ class Dashboard extends Component {
         registeredDevices: data.registered,
       });
     }).catch((e) => {
-      console.log('Fetching device status error.', e.message);
+      console.error('[E2E] Fetching device status error.', e.message);
     })
   }
 
@@ -101,7 +101,6 @@ class Dashboard extends Component {
           item.properties.messageSize = parseFloat(item.properties.messageSize);
           records.set(item.correlationId, item);
           if (item.operationName === 'DiagnosticIoTHubRouting') {
-            
             if (endpoints.has(item.properties.endpointName)) {
               let value = endpoints.get(item.properties.endpointName);
               if (item.durationMs > value.max) {
@@ -165,6 +164,9 @@ class Dashboard extends Component {
           recordKeysToDelete.push(k);
           if (v.operationName === 'DiagnosticIoTHubRouting') {
             let value = endpoints.get(v.properties.endpointName);
+            if (value == undefined) {
+              console.error('[E2E] Endpoint: ' + v.properties.endpointName + ' is undefined');
+            }
             if (value.messageCount === 1) {
               endpointKeysToDelete.push(value.name);
               value.messageCount = 0;
@@ -181,6 +183,9 @@ class Dashboard extends Component {
             }
           } else if (v.operationName === 'DiagnosticIoTHubIngress') {
             let value = devices.get(v.properties.deviceId);
+            if (value == undefined) {
+              console.error('[E2E] Device: ' + v.properties.deviceId + ' is undefined');
+            }
             if (value.messageCount === 1) {
               deviceKeysToDelete.push(value.name);
               value.messageCount = 0;
@@ -211,7 +216,7 @@ class Dashboard extends Component {
 
       for (let [k, v] of records) {
         if (v.operationName === 'DiagnosticIoTHubRouting') {
-          if (updateMaxEndpointsMap.has(v.properties.endpointName)) {
+          if (updateMaxEndpointsMap.has(v.properties.endpointName) && endpoints.has(v.properties.endpointName)) {
             if (v.durationMs > endpoints.get(v.properties.endpointName).max) {
               let ep = endpoints.get(v.properties.endpointName);
               ep.max = v.durationMs;
@@ -221,7 +226,7 @@ class Dashboard extends Component {
           }
         }
         else if (v.operationName === 'DiagnosticIoTHubIngress') {
-          if (updateMaxDevicesMap.has(v.properties.deviceId)) {
+          if (updateMaxDevicesMap.has(v.properties.deviceId) && devices.has(v.properties.deviceId)) {
             if (v.durationMs > devices.get(v.properties.deviceId).max) {
               let ep = devices.get(v.properties.deviceId);
               ep.max = v.durationMs;
@@ -244,7 +249,7 @@ class Dashboard extends Component {
       toggleDevice.messageCount = toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
       toggleDevice.maxId = toggleDeviceMaxId;
-      if(devices.size !== 0 ) {
+      if (devices.size !== 0) {
         toggleDeviceMap.set('All Devices', toggleDevice);
       }
 
@@ -497,7 +502,7 @@ class Dashboard extends Component {
     return `customEvents | where timestamp >= datetime('${start.toISOString()}') and timestamp <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition}`;
   }
 
-  getKustoStatementForSingleRecord = (start,end,correlationId) => {
+  getKustoStatementForSingleRecord = (start, end, correlationId) => {
     return `customEvents | where timestamp >= datetime('${start.toISOString()}') and timestamp <= datetime('${end.toISOString()}') and customDimensions.correlationId contains '${correlationId}'`;
   }
 
@@ -703,7 +708,7 @@ class Dashboard extends Component {
                     onMouseEnter={this.changeCursorToPointer}
                     onMouseLeave={this.changeCursorToDefault}
                     onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                      this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(),style.data.maxId.substring(8, 16))
+                      this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId.substring(8, 16))
                     ))}
                   />
                   <Text
@@ -868,7 +873,7 @@ class Dashboard extends Component {
                         onMouseEnter={this.changeCursorToPointer}
                         onMouseLeave={this.changeCursorToDefault}
                         onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                          this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(),style.data.maxId.substring(8, 16))
+                          this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId.substring(8, 16))
                         ))}
                       />
                       <Text
