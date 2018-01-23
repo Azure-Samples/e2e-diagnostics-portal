@@ -64,8 +64,8 @@ class Dashboard extends Component {
     return [startDate, endDate];
   }
 
-  refresh = (firstCall, callback) => {
-    if (firstCall) {
+  refresh = (firstCall,retry, callback) => {
+    if (firstCall && !retry) {
       this.reset();
       this.showLoading();
     }
@@ -98,9 +98,9 @@ class Dashboard extends Component {
       let p1 = performance.now();
       for (let item of data.value) {
         if (!records.has(item.correlationId)) {
-          if(!this.state.iotHubName && item.resourceId) {
+          if (!this.state.iotHubName && item.resourceId) {
             let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
-            if(matches && matches[1]) {
+            if (matches && matches[1]) {
               this.setState({
                 iotHubName: matches[1]
               });
@@ -292,34 +292,17 @@ class Dashboard extends Component {
       console.log('Consuming: ' + (p2 - p1));
 
       this.setState(stateToSet, callback);
-      if(firstCall) {
+      if (firstCall) {
         this.hideLoading();
       }
+    }).catch(error=>{
+      callback(error);
     });
   }
 
   componentDidMount() {
     this.initDate = new Date();
-    this.refresh(true, () => {
-      this.leftLineAnimationHandler(1);
-      setTimeout(() => {
-        this.leftLineAnimationHandler(2);
-      }, 600)
-      setTimeout(() => {
-        this.leftLineAnimationHandler(3);
-      }, 1200)
-      this.rightLineAnimationHandler(1);
-      setTimeout(() => {
-        this.rightLineAnimationHandler(2);
-      }, 600)
-      setTimeout(() => {
-        this.rightLineAnimationHandler(3);
-      }, 1200)
-      this.refreshInterval = window.setInterval(() => {
-        this.refresh(false, () => {
-        });
-      }, this.queryMetricSpanInSeconds * 1000)
-    });
+    this.scheduleFirstRefreshWithRetry();
 
     this.getDeviceNumber();
     this.getDeviceNumberInterval = window.setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
@@ -460,36 +443,44 @@ class Dashboard extends Component {
     }
   }
 
+  scheduleFirstRefreshWithRetry = (retry = false) => {
+    console.log('schedule start');
+    this.refresh(true,retry, (err) => {
+      if (err) {
+        console.log('schedule with error, will retry')
+        this.scheduleFirstRefreshWithRetry(true);
+      } else {
+        console.log('schedule success!!');
+        this.leftLineAnimationHandler(1);
+        setTimeout(() => {
+          this.leftLineAnimationHandler(2);
+        }, 600)
+        setTimeout(() => {
+          this.leftLineAnimationHandler(3);
+        }, 1200)
+        this.rightLineAnimationHandler(1);
+        setTimeout(() => {
+          this.rightLineAnimationHandler(2);
+        }, 600)
+        setTimeout(() => {
+          this.rightLineAnimationHandler(3);
+        }, 1200)
+        this.refreshInterval = window.setInterval(() => {
+          this.refresh(false,false, () => {
+          });
+        }, this.queryMetricSpanInSeconds * 1000)
+      }
+    });
+  }
+
   changeTimeSpan = (span) => {
     if (this.state.spanInMinutes !== span) {
-      if(this.refreshInterval) {
+      if (this.refreshInterval) {
         window.clearInterval(this.refreshInterval);
       }
       this.setState({
         spanInMinutes: span
-      }, () => {
-        this.refresh(true, () => {
-          this.leftLineAnimationHandler(1);
-          setTimeout(() => {
-            this.leftLineAnimationHandler(2);
-          }, 600)
-          setTimeout(() => {
-            this.leftLineAnimationHandler(3);
-          }, 1200)
-          this.rightLineAnimationHandler(1);
-          setTimeout(() => {
-            this.rightLineAnimationHandler(2);
-          }, 600)
-          setTimeout(() => {
-            this.rightLineAnimationHandler(3);
-          }, 1200)
-          this.refreshInterval = window.setInterval(() => {
-            this.refresh(false, () => {
-            });
-          }, this.queryMetricSpanInSeconds * 1000)
-        });
-      });
-      
+      }, this.scheduleFirstRefreshWithRetry);
     }
   }
 
@@ -554,6 +545,7 @@ class Dashboard extends Component {
         let degree = 0;
         let f = () => {
           degree += 360;
+          console.log('f')
           this.loadingRef.to({
             rotation: degree,
             duration: interval,
@@ -841,10 +833,10 @@ class Dashboard extends Component {
             />
             <Text
               x={b2x + 20 + lw * 1.3 + 20}
-              y={b1y - b2h * 1.7 / 2 + (b2h  - 16) / 2}
+              y={b1y - b2h * 1.7 / 2 + (b2h - 16) / 2}
               fontSize={16}
               height={16}
-              text={this.state.iotHubName.length<=14 ? this.state.iotHubName : this.state.iotHubName.substring(0,13) + '...' }
+              text={this.state.iotHubName.length <= 14 ? this.state.iotHubName : this.state.iotHubName.substring(0, 13) + '...'}
             />
             <Text
               x={b2x + 20}
@@ -893,7 +885,7 @@ class Dashboard extends Component {
                     shadowBlur={5}
                     cornerRadius={5}
                   />
-                  
+
                     <Path
                       x={b3x + 3}
                       y={style.style.y + 3}
@@ -909,10 +901,10 @@ class Dashboard extends Component {
                       x={b3x + 20}
                       y={style.style.y + (style.style.height - lw + 5) / 2}
                       image={this.eventHubImage}
-                      width={lw*1}
-                      height={lw*1}
+                      width={lw * 1}
+                      height={lw * 1}
                     />
-                    
+
                     <Text
                       x={b3x + 20 + 35 + 20}
                       y={style.style.y + (style.style.height - tfs) / 2}
