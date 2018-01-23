@@ -5,7 +5,7 @@ var uuid = require('uuid');
 
 var device = express();
 router.get('/', (req, res) => {
-    var connectionString = 'HostName=iot-mj-prod.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=uoTBPzhU8UeUzaiOzmuUmXa/oT1Kr2O+t8FSPUSOOFU=';
+    var connectionString = 'HostName=E2Ediagnostics.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=JQPTdBXSHrVWjQSOIEf1nBVG1uHtDL9f7dEzVcdoyTM=';
     if (!connectionString) {
         res.sendStatus(400);
     }

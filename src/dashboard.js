@@ -3,7 +3,7 @@ import './dashboard.scss';
 import Device from './device';
 import gzip from 'gzip-js';
 import { Motion, TransitionMotion, spring, presets } from 'react-motion';
-import { Stage, Layer, Group, Rect, Text, Image as KonvaImage, Path, Line } from 'react-konva';
+import { Stage, Layer, Group, Rect, Text, Image as KonvaImage, Path, Line, Arc } from 'react-konva';
 import config from '../config';
 import util from 'util';
 import SvgChip from '../asset/microchip.svg';
@@ -27,6 +27,7 @@ class Dashboard extends Component {
       leftLineInAnimationProgress: 0,
       rightLineInAnimationProgress: 0,
       spanInMinutes: 5,
+      loading: true,
     };
     this.records = new Map();
     this.unmatchedMap = new Map();
@@ -36,7 +37,7 @@ class Dashboard extends Component {
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
     this.startOfTimestamp = new Date(config.startTime);
-    this.kustoLinkTemplate = "https://analytics.applicationinsights.io/subscriptions/faab228d-df7a-4086-991e-e81c4659d41a/resourcegroups/mj-prod/components/amai?q=%s&apptype=other&timespan=P1D";
+    this.kustoLinkTemplate = "https://analytics.applicationinsights.io/subscriptions/faab228d-df7a-4086-991e-e81c4659d41a/resourcegroups/e2e-portal/components/e2e-portal-ai?q=%s&apptype=other&timespan=P1D";
   }
 
   getDeviceNumber = () => {
@@ -62,9 +63,11 @@ class Dashboard extends Component {
   refresh = (firstCall, callback) => {
     if (firstCall) {
       this.reset();
+      this.showLoading();
     }
     let end = (new Date() - this.initDate) / 1000;
-    let start = firstCall ? end - this.state.spanInMinutes * 60 : end - this.queryMetricSpanInSeconds;
+    let start = firstCall ? end - this.state.spanInMinutes * 60 : this.lastCallEndTime;
+    this.lastCallEndTime = end;
     start -= 0.1; // to make timespan a little overlap
     let records = this.records;
     fetch(config.api + '/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
@@ -277,6 +280,9 @@ class Dashboard extends Component {
       console.log('Consuming: ' + (p2 - p1));
 
       this.setState(stateToSet, callback);
+      if(firstCall) {
+        this.hideLoading();
+      }
     });
   }
 
@@ -297,16 +303,14 @@ class Dashboard extends Component {
       setTimeout(() => {
         this.rightLineAnimationHandler(3);
       }, 1200)
+      this.refreshInterval = window.setInterval(() => {
+        this.refresh(false, () => {
+        });
+      }, this.queryMetricSpanInSeconds * 1000)
     });
 
-
-    this.refreshInterval = setInterval(() => {
-      this.refresh(false, () => {
-      });
-    }, this.queryMetricSpanInSeconds * 1000)
-
     this.getDeviceNumber();
-    this.getDeviceNumberInterval = setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
+    this.getDeviceNumberInterval = window.setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
   }
 
   componentDidUpdate() {
@@ -446,6 +450,9 @@ class Dashboard extends Component {
 
   changeTimeSpan = (span) => {
     if (this.state.spanInMinutes !== span) {
+      if(this.refreshInterval) {
+        window.clearInterval(this.refreshInterval);
+      }
       this.setState({
         spanInMinutes: span
       }, () => {
@@ -464,12 +471,19 @@ class Dashboard extends Component {
           setTimeout(() => {
             this.rightLineAnimationHandler(3);
           }, 1200)
+          this.refreshInterval = window.setInterval(() => {
+            this.refresh(false, () => {
+            });
+          }, this.queryMetricSpanInSeconds * 1000)
         });
       });
+      
     }
   }
 
   reset = () => {
+    this.records = new Map();
+    this.unmatchedMap = new Map();
     this.setState({
       expand: false,
       devices: new Map(),
@@ -479,8 +493,6 @@ class Dashboard extends Component {
       leftLineInAnimationProgress: 0,
       rightLineInAnimationProgress: 0,
     })
-    this.records = new Map();
-    this.unmatchedMap = new Map();
   }
 
   encodeKustoQuery = (query) => {
@@ -513,13 +525,51 @@ class Dashboard extends Component {
     window.open(link);
   }
 
+  ElasticEaseInOut = function (t, b, c, d) {
+    if ((t /= d / 2) < 1) {
+      return c / 2 * t * t + b;
+    }
+    return -c / 2 * (--t * (t - 2) - 1) + b;
+  }
+
+  showLoading = () => {
+    console.log('show loading')
+    this.setState({
+      loading: true
+    }, () => {
+      if (this.loadingRef) {
+        let interval = 1;
+        let degree = 0;
+        let f = () => {
+          degree += 360;
+          this.loadingRef.to({
+            rotation: degree,
+            duration: interval,
+            easing: this.ElasticEaseInOut,
+          });
+        };
+        f();
+        this.loadingInterval = window.setInterval(f, interval * 1000);
+      }
+    });
+  }
+
+  hideLoading = () => {
+    this.loadingRef = undefined;
+    console.log(this.loadingInterval)
+    if (this.loadingInterval) window.clearInterval(this.loadingInterval);
+    this.setState({
+      loading: false
+    });
+  }
+
   render() {
     let ff = "Segoe UI";
     let leftPadding = 100;
     let rightPadding = 400;
     let timePicker = 200;
     let ch = window.innerHeight;
-    let cw = window.innerWidth - 50; // minus the width of sidebar
+    let cw = window.innerWidth - 40; // minus the width of sidebar
     if (cw > 1922) {
       let space = cw - 1922;
       leftPadding += space / 2;
@@ -561,6 +611,26 @@ class Dashboard extends Component {
     let rightLineStyle = {
       progress: this.state.rightLineInAnimationProgress >= 2 ? spring(100, { stiffness: 60, damping: 15 }) : 0
     };
+
+    let loading = <Layer><Group>
+      <Rect
+        x={0}
+        y={0}
+        width={cw + leftPadding + rightPadding}
+        height={ch}
+        fill="rgba(233,233,233,0.95)"
+      />
+      <Arc
+        ref={input => { if (!this.loadingRef) this.loadingRef = input; }}
+        x={leftPadding + cw / 2}
+        y={b1y}
+        innerRadius={50}
+        outerRadius={55}
+        angle={330}
+        fill="#0072c6"
+      />
+    </Group>
+    </Layer>;
 
     let devices = <Group>
       <TransitionMotion
@@ -969,6 +1039,7 @@ class Dashboard extends Component {
             />
           </Group>
         </Layer>
+        {this.state.loading && loading}
       </Stage>
     );
   }
