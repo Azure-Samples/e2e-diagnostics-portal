@@ -169,7 +169,7 @@ class Dashboard extends Component {
           if (v.operationName === 'DiagnosticIoTHubRouting') {
             let value = endpoints.get(v.properties.endpointName);
             if (value == undefined) {
-              console.error('[E2E] Endpoint: ' + v.properties.endpointName + ' is undefined');
+              // console.error('[E2E] Endpoint: ' + v.properties.endpointName + ' is undefined');
               continue;
             }
             if (value.messageCount === 1) {
@@ -189,7 +189,7 @@ class Dashboard extends Component {
           } else if (v.operationName === 'DiagnosticIoTHubIngress') {
             let value = devices.get(v.properties.deviceId);
             if (value == undefined) {
-              console.error('[E2E] Device: ' + v.properties.deviceId + ' is undefined');
+              // console.error('[E2E] Device: ' + v.properties.deviceId + ' is undefined');
               continue;
             }
             if (value.messageCount === 1) {
