@@ -41,7 +41,7 @@ class Dashboard extends Component {
   }
 
   getDeviceNumber = () => {
-    fetch(config.api + '/api/device').then(results => results.json()).then(data => {
+    fetch(config.api + '/api/device?init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
       this.setState({
         connectedDevices: data.connected,
         registeredDevices: data.registered,
@@ -70,7 +70,7 @@ class Dashboard extends Component {
     this.lastCallEndTime = end;
     start -= 0.1; // to make timespan a little overlap
     let records = this.records;
-    fetch(config.api + '/api/metric?start=' + start + '&end=' + end).then(results => results.json()).then(data => {
+    fetch(config.api + '/api/metric?start=' + start + '&end=' + end + '&init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
       let endpoints = this.state.endpoints;
       let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;

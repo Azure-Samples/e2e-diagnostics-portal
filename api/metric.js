@@ -18,16 +18,33 @@ var restUrl = "https://api.applicationinsights.io/v1/apps/%s/query?timespan=P7D&
 // });
 
 router.get('/', function (req, res) {
+  if (process.env.EXPIRE) {
+    let expiration = process.env.EXPIRE.substring(1,25);
+    let initDate = req.query.init;
+    if (!initDate || initDate < expiration) {
+      res.json({
+        value: [],
+        error: "API request expired",
+      });
+      return;
+    }
+  }
   var appId = '28192abf-e335-4044-ae29-47bbfac72ddd';//Util.getAppId();
   if (!appId) {
-    res.status(500).send("App id missing")
+    res.status(500).send("App id missing");
+    return;
   }
   var start = parseInt(req.query.start);
   var end = parseInt(req.query.end);
   if (start == undefined || end == undefined) {
-    res.status(500).send("start or end is not provided")
+    res.status(500).send("start or end is not provided");
+    return;
   }
-  var key = 'q5170hcg0hfz13zsngxxcykrezfvpvosrj7pzwll';
+  var key = process.env.API_KEY;
+  if (!key) {
+    res.status(500).send("api key is not specified");
+    return;
+  }
   let startDate = new Date(startOfTimestamp.getTime());
   let endDate = new Date(startOfTimestamp.getTime());
   startDate.setSeconds(startDate.getSeconds() + start);
@@ -39,6 +56,7 @@ router.get('/', function (req, res) {
   }, (err, response, body) => {
     if (err) {
       res.status(500).send(err.message);
+      return;
     }
     console.log(body);
     try {
