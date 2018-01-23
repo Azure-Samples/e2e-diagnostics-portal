@@ -9,6 +9,7 @@
     "build": "webpack --config ./webpack.prod.config.js"
   },
   "dependencies": {
+    "apicache": "^1.2.0",
     "azure-iothub": "^1.2.3",
     "body-parser": "^1.18.2",
     "cors": "^2.8.4",

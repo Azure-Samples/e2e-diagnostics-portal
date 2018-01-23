@@ -10,7 +10,8 @@
     "body-parser": "^1.18.2",
     "express": "^4.16.2",
     "cors": "^2.8.4",
-    "azure-iothub": "^1.2.3"
+    "azure-iothub": "^1.2.3",
+    "apicache": "^1.2.0"
   },
   "devDependencies": {
     "babel-polyfill": "^6.26.0"

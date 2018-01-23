@@ -4,7 +4,7 @@ var request = require('request');
 var node_util = require('util');
 var config = require('../config');
 // var Util = require('../util/util');
-// var apicache = require('apicache');
+var apicache = require('apicache');
 
 let startOfTimestamp = new Date(config.startTime);
 var kustoQuery = `customEvents | where name == 'E2EDIAGNOSTICS' and timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('%s') and todatetime(tostring(customDimensions['time'])) <= datetime('%s') | project customDimensions`;
