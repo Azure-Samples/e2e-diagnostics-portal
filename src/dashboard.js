@@ -10,6 +10,7 @@ import SvgChip from '../asset/microchip.svg';
 import PngIotHub from '../asset/iothub.png';
 import SvgExpand from '../asset/expand.svg';
 import SvgEndpoint from '../asset/endpoint.svg';
+import PngEventhub from '../asset/eventhub.png';
 import SvgCompress from '../asset/compress.svg';
 import { setInterval } from 'timers';
 
@@ -28,6 +29,7 @@ class Dashboard extends Component {
       rightLineInAnimationProgress: 0,
       spanInMinutes: 5,
       loading: true,
+      iotHubName: '',
     };
     this.records = new Map();
     this.unmatchedMap = new Map();
@@ -36,6 +38,8 @@ class Dashboard extends Component {
     this.queryDeviceSpanInSeconds = 2;
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
+    this.eventHubImage = new Image();
+    this.eventHubImage.src = PngEventhub;
     this.startOfTimestamp = new Date(config.startTime);
     this.kustoLinkTemplate = "https://analytics.applicationinsights.io/subscriptions/faab228d-df7a-4086-991e-e81c4659d41a/resourcegroups/e2e-portal/components/e2e-portal-ai?q=%s&apptype=other&timespan=P1D";
   }
@@ -94,6 +98,14 @@ class Dashboard extends Component {
       let p1 = performance.now();
       for (let item of data.value) {
         if (!records.has(item.correlationId)) {
+          if(!this.state.iotHubName && item.resourceId) {
+            let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
+            if(matches && matches[1]) {
+              this.setState({
+                iotHubName: matches[1]
+              });
+            }
+          }
           let correlationPrefix = item.correlationId.substring(8, 16);
           item.durationMs = parseFloat(item.durationMs);
           item.time = new Date(item.time);
@@ -829,10 +841,10 @@ class Dashboard extends Component {
             />
             <Text
               x={b2x + 20 + lw * 1.3 + 20}
-              y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2}
-              fontSize={35}
-              height={35}
-              text="IoT Hub"
+              y={b1y - b2h * 1.7 / 2 + (b2h  - 16) / 2}
+              fontSize={16}
+              height={16}
+              text={this.state.iotHubName.length<=14 ? this.state.iotHubName : this.state.iotHubName.substring(0,13) + '...' }
             />
             <Text
               x={b2x + 20}
@@ -870,7 +882,7 @@ class Dashboard extends Component {
             willEnter={this.willEnterNumber.bind(null, b1y)}>
 
             {
-              function (styles) {
+              (styles) => {
                 return <Group>
                   {styles.map(style => <Group key={style.data.name}><Rect
                     x={b3x}
@@ -881,16 +893,26 @@ class Dashboard extends Component {
                     shadowBlur={5}
                     cornerRadius={5}
                   />
+                  
                     <Path
-                      x={b3x + 20}
-                      y={style.style.y + (style.style.height - 35) / 2}
+                      x={b3x + 3}
+                      y={style.style.y + 3}
                       fill="#0072c6"
                       data={SvgEndpoint}
                       scale={{
-                        x: 50 / 24 * 1.3,
-                        y: 50 / 26 * 1.3,
+                        x: 50 / 24 * 0.8,
+                        y: 50 / 26 * 0.8,
                       }}
                     />
+
+                    <KonvaImage
+                      x={b3x + 20}
+                      y={style.style.y + (style.style.height - lw + 5) / 2}
+                      image={this.eventHubImage}
+                      width={lw*1}
+                      height={lw*1}
+                    />
+                    
                     <Text
                       x={b3x + 20 + 35 + 20}
                       y={style.style.y + (style.style.height - tfs) / 2}
