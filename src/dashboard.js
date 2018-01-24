@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
 import './dashboard.scss';
-import Device from './device';
 import gzip from 'gzip-js';
 import { Motion, TransitionMotion, spring, presets } from 'react-motion';
 import { Stage, Layer, Group, Rect, Text, Image as KonvaImage, Path, Line, Arc } from 'react-konva';

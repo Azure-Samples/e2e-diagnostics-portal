@@ -1,11 +1,21 @@
 var express = require('express');
 var router = express.Router();
 var uuid = require('uuid');
-var apicache = require('apicache');
-// var Util = require('../util/util');
+var cache = require('memory-cache');
+var queue = require('express-queue');
 
-var device = express();
-router.get('/', apicache.middleware('2 seconds'), (req, res) => {
+let requestNum = 0;
+let cacheMissNum = 0;
+
+router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
+  requestNum++;
+  let cachedDevice = cache.get('device');
+  if (cachedDevice) {
+    console.log('[device] cache hit');
+    res.send(cachedDevice);
+    return;
+  }
+  cacheMissNum++;
   if (process.env.EXPIRE) {
     let expiration = process.env.EXPIRE;
     let initDate = req.query.init;
@@ -20,7 +30,7 @@ router.get('/', apicache.middleware('2 seconds'), (req, res) => {
   }
   var connectionString = 'HostName=E2Ediagnostics.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=JQPTdBXSHrVWjQSOIEf1nBVG1uHtDL9f7dEzVcdoyTM=';
   if (!connectionString) {
-    res.sendStatus(400);
+    res.sendStatus(500).send('Connection string is not specified.');
     return;
   }
   var Registry = require('azure-iothub').Registry.fromConnectionString(connectionString);
@@ -33,11 +43,20 @@ router.get('/', apicache.middleware('2 seconds'), (req, res) => {
       deviceList.forEach((device) => {
         if (device.connectionState === "Connected") connectedNum++;
       });
-      res.send({
+      let result = {
         registered: deviceList.length,
-        connected: connectedNum
-      });
+        connected: connectedNum,
+      };
+      cache.put('device', result, 5000);
+      res.send(result);
     }
+  });
+});
+
+router.get('/debug', (req,res)=>{
+  res.json({
+    requestNum,
+    cacheMissNum,
   });
 });
 

@@ -11,7 +11,8 @@
     "express": "^4.16.2",
     "cors": "^2.8.4",
     "azure-iothub": "^1.2.3",
-    "apicache": "^1.2.0"
+    "memory-cache": "^0.2.0",
+    "express-queue": "0.0.10"
   },
   "devDependencies": {
     "babel-polyfill": "^6.26.0"
