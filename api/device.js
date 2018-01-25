@@ -11,7 +11,6 @@ router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
   requestNum++;
   let cachedDevice = cache.get('device');
   if (cachedDevice) {
-    console.log('[device] cache hit');
     res.send(cachedDevice);
     return;
   }
@@ -28,10 +27,15 @@ router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
       return;
     }
   }
-  var connectionString = 'HostName=E2Ediagnostics.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=JQPTdBXSHrVWjQSOIEf1nBVG1uHtDL9f7dEzVcdoyTM=';
+  var connectionString = process.env.IOTHUB_CONNECTION_STRING;
   if (!connectionString) {
     res.sendStatus(500).send('Connection string is not specified.');
     return;
+  }
+  let m = connectionString.match(/HostName=([^\.]*)\.azure\-devices\.net/);
+  let iothubName;
+  if (m) {
+    iothubName = m[1];
   }
   var Registry = require('azure-iothub').Registry.fromConnectionString(connectionString);
   Registry.list((err, deviceList) => {
@@ -46,6 +50,7 @@ router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
       let result = {
         registered: deviceList.length,
         connected: connectedNum,
+        iothub: iothubName,
       };
       cache.put('device', result, 5000);
       res.send(result);

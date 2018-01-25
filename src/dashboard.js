@@ -26,21 +26,21 @@ class Dashboard extends Component {
       unmatchedNumber: 0,
       leftLineInAnimationProgress: 0,
       rightLineInAnimationProgress: 0,
-      spanInMinutes: 5,
+      spanInMinutes: 20,
       loading: true,
       iotHubName: '',
+      sourceAI: false,
     };
     this.records = new Map();
     this.unmatchedMap = new Map();
     this.initDate = null;
-    this.queryMetricSpanInSeconds = 3;
+    this.queryMetricSpanInSeconds = 30;
     this.queryDeviceSpanInSeconds = 2;
     this.iotHubImage = new Image();
     this.iotHubImage.src = PngIotHub;
     this.eventHubImage = new Image();
     this.eventHubImage.src = PngEventhub;
     this.startOfTimestamp = new Date(config.startTime);
-    this.kustoLinkTemplate = "https://analytics.applicationinsights.io/subscriptions/faab228d-df7a-4086-991e-e81c4659d41a/resourcegroups/e2e-portal/components/e2e-portal-ai?q=%s&apptype=other&timespan=P1D";
   }
 
   getDeviceNumber = () => {
@@ -48,6 +48,7 @@ class Dashboard extends Component {
       this.setState({
         connectedDevices: data.connected,
         registeredDevices: data.registered,
+        iotHubName: data.iothub,
       });
     }).catch((e) => {
       console.error('[E2E] Fetching device status error.', e.message);
@@ -55,12 +56,10 @@ class Dashboard extends Component {
   }
 
   getCurrentTimeWindow = () => {
-    let end = (new Date() - this.initDate) / 1000;
-    let startDate = new Date(this.startOfTimestamp.getTime());
-    let endDate = new Date(this.startOfTimestamp.getTime());
-    startDate.setSeconds(startDate.getSeconds() + end - this.state.spanInMinutes * 60);
-    endDate.setSeconds(endDate.getSeconds() + end);
-    return [startDate, endDate];
+    let end = new Date();
+    let start = new Date();
+    start.setMinutes(start.getMinutes() - this.state.spanInMinutes);
+    return [start, end];
   }
 
   refresh = (firstCall,retry, callback) => {
@@ -68,12 +67,14 @@ class Dashboard extends Component {
       this.reset();
       this.showLoading();
     }
-    let end = (new Date() - this.initDate) / 1000;
-    let start = firstCall ? end - this.state.spanInMinutes * 60 : this.lastCallEndTime;
-    this.lastCallEndTime = end;
-    start -= 0.1; // to make timespan a little overlap
     let records = this.records;
-    fetch(config.api + '/api/metric?start=' + start + '&end=' + end + '&init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
+    let url;
+    if(firstCall) {
+      url = config.api + '/api/metric/init?span=' + this.state.spanInMinutes + '&init=' + encodeURIComponent(this.initDate.toISOString());
+    }else {
+      url = config.api + '/api/metric?init=' + encodeURIComponent(this.initDate.toISOString());
+    }
+    fetch(url).then(results => results.json()).then(data => {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
       let endpoints = this.state.endpoints;
       let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;
@@ -95,6 +96,11 @@ class Dashboard extends Component {
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
       let p1 = performance.now();
+      if(data.source === 'ai') {
+        this.setState({
+          sourceAI: true
+        });
+      }
       for (let item of data.value) {
         if (!records.has(item.correlationId)) {
           if (!this.state.iotHubName && item.resourceId) {
@@ -163,7 +169,6 @@ class Dashboard extends Component {
               unmatched.set(correlationPrefix, true);
             }
           }
-
         }
       }
 
@@ -172,8 +177,12 @@ class Dashboard extends Component {
       let endpointKeysToDelete = [];
       let updateMaxDevicesMap = new Map();
       let updateMaxEndpointsMap = new Map();
+
+      let end = new Date();
+      let start = new Date(end);
+      start.setMinutes(start.getMinutes() - this.state.spanInMinutes);
       for (let [k, v] of records) {
-        if (v.time < startDate || v.time > endDate) {
+        if (v.time < start || v.time > end) {
           let correlationPrefix = v.correlationId.substring(8, 16);
           unmatched.delete(correlationPrefix);
           recordKeysToDelete.push(k);
@@ -502,7 +511,8 @@ class Dashboard extends Component {
     let s2 = gzip.zip(s1);
     let s3 = String.fromCharCode(...s2);
     let s4 = btoa(s3);
-    return util.format(this.kustoLinkTemplate, encodeURIComponent(s4));
+    let url = config.api + '/api/metric/kusto?query=' + encodeURIComponent(s4);
+    return url;
   }
 
   // type 0 all devices, 1 one device, 2 endpoint
@@ -773,9 +783,9 @@ class Dashboard extends Component {
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
                     text={`Avg: ${style.data.avg.toFixed(0)} ms`}
-                    onMouseEnter={this.changeCursorToPointer}
-                    onMouseLeave={this.changeCursorToDefault}
-                    onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                    onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
+                    onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
+                    onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                       this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), styles[0].data.name === 'All Devices' ? 0 : 1, style.data.name)
                     ))}
                   />
@@ -786,9 +796,9 @@ class Dashboard extends Component {
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
                     text={`Max: ${style.data.max.toFixed(0)} ms`}
-                    onMouseEnter={this.changeCursorToPointer}
-                    onMouseLeave={this.changeCursorToDefault}
-                    onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                    onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
+                    onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
+                    onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                       this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
                     ))}
                   />
@@ -949,9 +959,9 @@ class Dashboard extends Component {
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
                         text={`Avg: ${style.data.avg.toFixed(0)} ms`}
-                        onMouseEnter={this.changeCursorToPointer}
-                        onMouseLeave={this.changeCursorToDefault}
-                        onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                        onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
+                        onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
+                        onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                           this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), 2, style.data.name)
                         ))}
                       />
@@ -961,9 +971,9 @@ class Dashboard extends Component {
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
                         text={`Max: ${style.data.max.toFixed(0)} ms`}
-                        onMouseEnter={this.changeCursorToPointer}
-                        onMouseLeave={this.changeCursorToDefault}
-                        onClick={this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                        onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
+                        onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
+                        onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                           this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
                         ))}
                       />
@@ -987,29 +997,6 @@ class Dashboard extends Component {
               y={btph}
               width={btpw}
               height={btph}
-              fill={this.state.spanInMinutes === 5 ? "#e6e6e6" : "#fff"}
-              shadowBlur={2}
-              cornerRadius={2}
-              onMouseEnter={this.changeCursorToPointer}
-              onMouseLeave={this.changeCursorToDefault}
-              onClick={this.changeTimeSpan.bind(null, 5)}
-            />
-            <Text
-              x={btpx + 15}
-              y={btph + 10}
-              fontSize={18}
-              height={18}
-              text={`5 minutes`}
-              onMouseEnter={this.changeCursorToPointer}
-              onMouseLeave={this.changeCursorToDefault}
-              onClick={this.changeTimeSpan.bind(null, 5)}
-            />
-
-            <Rect
-              x={btpx}
-              y={btph + btph + 10}
-              width={btpw}
-              height={btph}
               fill={this.state.spanInMinutes === 20 ? "#e6e6e6" : "#fff"}
               shadowBlur={2}
               cornerRadius={2}
@@ -1019,13 +1006,36 @@ class Dashboard extends Component {
             />
             <Text
               x={btpx + 15}
-              y={btph + btph + 10 + 10}
+              y={btph + 10}
               fontSize={18}
               height={18}
               text={`20 minutes`}
               onMouseEnter={this.changeCursorToPointer}
               onMouseLeave={this.changeCursorToDefault}
               onClick={this.changeTimeSpan.bind(null, 20)}
+            />
+
+            <Rect
+              x={btpx}
+              y={btph + btph + 10}
+              width={btpw}
+              height={btph}
+              fill={this.state.spanInMinutes === 40 ? "#e6e6e6" : "#fff"}
+              shadowBlur={2}
+              cornerRadius={2}
+              onMouseEnter={this.changeCursorToPointer}
+              onMouseLeave={this.changeCursorToDefault}
+              onClick={this.changeTimeSpan.bind(null, 40)}
+            />
+            <Text
+              x={btpx + 15}
+              y={btph + btph + 10 + 10}
+              fontSize={18}
+              height={18}
+              text={`40 minutes`}
+              onMouseEnter={this.changeCursorToPointer}
+              onMouseLeave={this.changeCursorToDefault}
+              onClick={this.changeTimeSpan.bind(null, 40)}
             />
 
             <Rect

@@ -12,6 +12,7 @@
     "cors": "^2.8.4",
     "azure-iothub": "^1.2.3",
     "memory-cache": "^0.2.0",
+    "azure-storage": "^2.7.0",
     "express-queue": "0.0.10"
   },
   "devDependencies": {
