@@ -6,7 +6,8 @@
   "scripts": {
     "start": "webpack-dev-server",
     "api": "babel-node ./api/index.js",
-    "build": "webpack --config ./webpack.prod.config.js"
+    "build": "webpack --config ./webpack.prod.config.js",
+    "deploy": "npm run build && cd build && node ./api.js"
   },
   "dependencies": {
     "azure-iothub": "^1.2.3",

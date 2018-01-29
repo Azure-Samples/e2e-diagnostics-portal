@@ -25,7 +25,7 @@ on_success:
 - cd %TEMP%\html
 - del * /f /q
 - for /d %%p IN (*) do rmdir "%%p" /s /q
-- SETLOCAL EnableDelayedExpansion & robocopy "%APPVEYOR_BUILD_FOLDER%\build\web" "%TEMP%\html" /e & IF !ERRORLEVEL! EQU 1 (exit 0) ELSE (IF !ERRORLEVEL! EQU 3 (exit 0) ELSE (exit 1))
+- SETLOCAL EnableDelayedExpansion & robocopy "%APPVEYOR_BUILD_FOLDER%\build" "%TEMP%\html" /e & IF !ERRORLEVEL! EQU 1 (exit 0) ELSE (IF !ERRORLEVEL! EQU 3 (exit 0) ELSE (exit 1))
 - SETLOCAL EnableDelayedExpansion & robocopy "%APPVEYOR_BUILD_FOLDER%\build" "%TEMP%\html" "api.js" /e & robocopy "%APPVEYOR_BUILD_FOLDER%\api" "%TEMP%\html" "package.json" & IF !ERRORLEVEL! EQU 1 (exit 0) ELSE (IF !ERRORLEVEL! EQU 3 (exit 0) ELSE (exit 1)) 
 - git add -A
 - echo %APPVEYOR_PULL_REQUEST_NUMBER%
