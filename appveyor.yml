@@ -21,21 +21,15 @@ on_success:
 - ps: Add-Content "$env:USERPROFILE\.git-credentials" "https://$($env:access_token):x-oauth-basic@github.com`n"
 - git config --global user.email "%GIT_USER_EMAIL%"
 - git config --global user.name "%GIT_USER_NAME%"
-- git clone --depth 5 -q --branch=%TARGET_BRANCH_PROD_HTML% %STATIC_SITE_REPO% %TEMP%\html
+- git clone --depth 5 -q --branch=%TARGET_BRANCH_PROD% %STATIC_SITE_REPO% %TEMP%\html
 - cd %TEMP%\html
 - del * /f /q
 - for /d %%p IN (*) do rmdir "%%p" /s /q
 - SETLOCAL EnableDelayedExpansion & robocopy "%APPVEYOR_BUILD_FOLDER%\build\web" "%TEMP%\html" /e & IF !ERRORLEVEL! EQU 1 (exit 0) ELSE (IF !ERRORLEVEL! EQU 3 (exit 0) ELSE (exit 1))
+- SETLOCAL EnableDelayedExpansion & robocopy "%APPVEYOR_BUILD_FOLDER%\build" "%TEMP%\html" "api.js" /e & robocopy "%APPVEYOR_BUILD_FOLDER%\api" "%TEMP%\html" "package.json" & IF !ERRORLEVEL! EQU 1 (exit 0) ELSE (IF !ERRORLEVEL! EQU 3 (exit 0) ELSE (exit 1)) 
 - git add -A
 - echo %APPVEYOR_PULL_REQUEST_NUMBER%
 - echo %APPVEYOR_REPO_BRANCH%
 - echo %APPVEYOR_REPO_TAG%
 - git diff
-- if "%APPVEYOR_REPO_BRANCH%"=="master" if not defined APPVEYOR_PULL_REQUEST_NUMBER (git diff --quiet --exit-code --cached || git commit -m "Update Static HTML" && git push origin %TARGET_BRANCH_PROD_HTML% && appveyor AddMessage "HTML branch Updated")
-- git clone --depth 5 -q --branch=%TARGET_BRANCH_PROD_API% %STATIC_SITE_REPO% %TEMP%\api
-- cd %TEMP%\api
-- del * /f /q 
-- for /d %%p IN (*) do rmdir "%%p" /s /q 
-- SETLOCAL EnableDelayedExpansion & robocopy "%APPVEYOR_BUILD_FOLDER%\build" "%TEMP%\api" "api.js" /e & robocopy "%APPVEYOR_BUILD_FOLDER%\api" "%TEMP%\api" "package.json" & IF !ERRORLEVEL! EQU 1 (exit 0) ELSE (IF !ERRORLEVEL! EQU 3 (exit 0) ELSE (exit 1)) 
-- git add -A 
-- if "%APPVEYOR_REPO_BRANCH%"=="master" if not defined APPVEYOR_PULL_REQUEST_NUMBER (git diff --quiet --exit-code --cached || git commit -m "Update Static API" && git push origin %TARGET_BRANCH_PROD_API% && appveyor AddMessage "API branch Updated")
+- if "%APPVEYOR_REPO_BRANCH%"=="master" if not defined APPVEYOR_PULL_REQUEST_NUMBER (git diff --quiet --exit-code --cached || git commit -m "Update Static" && git push origin %TARGET_BRANCH_PROD% && appveyor AddMessage "Static branch Updated")

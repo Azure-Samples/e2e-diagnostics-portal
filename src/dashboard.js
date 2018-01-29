@@ -44,7 +44,7 @@ class Dashboard extends Component {
   }
 
   getDeviceNumber = () => {
-    fetch(config.api + '/api/device?init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
+    fetch(this.getApiDomain() + '/api/device?init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
       this.setState({
         connectedDevices: data.connected,
         registeredDevices: data.registered,
@@ -70,9 +70,9 @@ class Dashboard extends Component {
     let records = this.records;
     let url;
     if(firstCall) {
-      url = config.api + '/api/metric/init?span=' + this.state.spanInMinutes + '&init=' + encodeURIComponent(this.initDate.toISOString());
+      url = this.getApiDomain() + '/api/metric/init?span=' + this.state.spanInMinutes + '&init=' + encodeURIComponent(this.initDate.toISOString());
     }else {
-      url = config.api + '/api/metric?init=' + encodeURIComponent(this.initDate.toISOString());
+      url = this.getApiDomain() + '/api/metric?init=' + encodeURIComponent(this.initDate.toISOString());
     }
     fetch(url).then(results => results.json()).then(data => {
       let devices = this.state.expand ? this.state.devices : this.state.toggleDevices;
@@ -511,7 +511,7 @@ class Dashboard extends Component {
     let s2 = gzip.zip(s1);
     let s3 = String.fromCharCode(...s2);
     let s4 = btoa(s3);
-    let url = config.api + '/api/metric/kusto?query=' + encodeURIComponent(s4);
+    let url = this.getApiDomain() + '/api/metric/kusto?query=' + encodeURIComponent(s4);
     return url;
   }
 
@@ -535,6 +535,14 @@ class Dashboard extends Component {
 
   openLinkInNewPage = (link) => {
     window.open(link);
+  }
+
+  getApiDomain = () => {
+    if(config.apiDomain) {
+      return config.apiDomain;
+    }
+    let domain = "https://" + window.location.hostname;
+    return process.env.NODE_ENV === 'development' ? '' : domain;
   }
 
   ElasticEaseInOut = function (t, b, c, d) {
