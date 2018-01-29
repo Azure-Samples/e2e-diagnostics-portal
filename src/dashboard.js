@@ -541,8 +541,9 @@ class Dashboard extends Component {
     if(config.apiDomain) {
       return config.apiDomain;
     }
-    let domain = "https://" + window.location.hostname;
-    return process.env.NODE_ENV === 'development' ? '' : domain;
+    // let domain = "https://" + window.location.hostname;
+    // return process.env.NODE_ENV === 'development' ? '' : domain;
+    return '';
   }
 
   ElasticEaseInOut = function (t, b, c, d) {
