@@ -642,7 +642,8 @@ class Dashboard extends Component {
     let rightPadding = 400;
     let timePicker = 200;
     let ch = window.innerHeight;
-    let cw = window.innerWidth; // minus the width of sidebar
+    let cw = window.innerWidth;
+    let s = 1; //scale factor
     if (cw > 1922) {
       let space = cw - 1922;
       leftPadding += space / 2;
@@ -653,6 +654,10 @@ class Dashboard extends Component {
       leftPadding -= space / 5;
       rightPadding -= space * 4 / 5;
     }
+    if (cw < 1500) {
+      s = cw / 1500;
+    };
+    let sf = { x: s, y: s };
     cw -= (leftPadding + rightPadding);
     let bw = cw * 0.2222 * 0.9;
     let bw_small = bw * 0.8;
@@ -727,56 +732,59 @@ class Dashboard extends Component {
                 cornerRadius={5}
               />
                 <KonvaImage
-                  x={b1x + 8}
-                  y={style.style.y + 8}
+                  x={b1x + 8*s}
+                  y={style.style.y + 8*s}
                   image={this.state.expand ? (style.data.diagnosticDesired !== 0 ? this.diagnosticOnImage : this.diagnosticOffImage) : null}
-                  width={10}
-                  height={10}
+                  width={10*s}
+                  height={10*s}
                 />
                 <Text
-                  x={b1x + 20}
-                  y={style.style.y + 8}
-                  fontSize={9}
-                  height={9}
+                  x={b1x + 20*s}
+                  y={style.style.y + 8*s}
+                  fontSize={9*s}
+                  height={9*s}
                   fill="rgba(0,0,0,0.9)"
-                  text={this.state.expand ? style.data.diagnosticDesired +'' : ''}
+                  text={this.state.expand ? style.data.diagnosticDesired + '' : ''}
                   opacity={style.style.opacity}
                 />
                 <Path
-                  x={b1x + 20}
-                  y={style.style.y + (style.style.height - lw) / 2}
+                  x={b1x + 20*s}
+                  y={style.style.y + (style.style.height - 26*1.8*s) / 2}
                   fill={this.state.expand ? (style.data.connected ? "#0072c6" : "#aaaaaa") : (this.state.connectedDevices !== 0 ? "#0072c6" : "#aaaaaa")}
                   data={SvgChip}
                   opacity={style.style.opacity}
                   scale={{
-                    x: lw / 24 * 1,
-                    y: lw / 26 * 1,
+                    x: 1.8*s,
+                    y: 1.8*s
                   }}
                 />
                 <Text
-                  x={b1x + 20 + lw + 20}
+                  x={b1x + 20*s + 26*1.8*s + 20*s}
                   y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2}
                   fontSize={tfs}
                   height={tfs}
+                  scale={sf}
                   fill="rgba(0,0,0,0.9)"
                   text={style.data.name}
                   opacity={style.style.opacity}
                 />
 
                 <Text
-                  x={b1x + 20 + lw + 20}
+                  x={b1x + 20*s + 26*1.8*s + 20*s}
                   y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2 + tfs + 5}
                   fontSize={t2fs}
                   height={t2fs}
+                  scale={sf}
                   fill={"rgba(0, 0, 0, 0.65)"}
                   text={"Avg size: " + (style.data.avgSize === 0 ? '-' : this.getReadableSize(style.data.avgSize))}
                 />
 
                 <Text
-                  x={b1x + 20 + lw + 20}
+                  x={b1x + 20*s + 26*1.8*s + 20*s}
                   y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2 + tfs + 5 + t2fs + 5}
                   fontSize={t2fs}
                   height={t2fs}
+                  scale={sf}
                   fill={"rgba(0, 0, 0, 0.65)"}
                   text={"Sum: " + (style.data.avgSize * style.data.messageCount === 0 ? '-' : this.getReadableSize(style.data.avgSize * style.data.messageCount))}
                 />
@@ -784,10 +792,10 @@ class Dashboard extends Component {
               </Group>)}
               <Group>
                 <Rect
-                  x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs}
-                  y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7) / 2}
-                  height={tfs}
-                  width={tfs}
+                  x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs *s}
+                  y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7 *s) / 2}
+                  height={tfs*s}
+                  width={tfs*s}
                   onClick={this.toggleExpand}
                   onMouseEnter={() => {
                     if (this.compressRef) this.compressRef.to({ fill: 'gray', duration: 0.3 });
@@ -799,8 +807,8 @@ class Dashboard extends Component {
                   }}
                 />
                 <Path
-                  x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs}
-                  y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7) / 2}
+                  x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs*s}
+                  y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7*s) / 2}
                   height={tfs}
                   fill="rgba(0,0,0,0.9)"
                   opacity={styles.length === 0 ? 0 : styles[0].style.opacity}
@@ -816,8 +824,8 @@ class Dashboard extends Component {
                     this.changeCursorToDefault();
                   }}
                   scale={{
-                    x: 0.7,
-                    y: 0.7,
+                    x: 0.7*s,
+                    y: 0.7*s,
                   }}
                 />
               </Group>
@@ -853,11 +861,12 @@ class Dashboard extends Component {
               {styles.map(style =>
                 <Group key={style.data.name}>
                   <Text
-                    x={leftLinex1 + 10}
+                    x={leftLinex1 + 10*s}
                     y={style.style.y + (style.style.height - tfs) / 2}
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
+                    scale={sf}
                     text={`Avg: ${style.data.messageCount === 0 ? '-' : style.data.avg.toFixed(0) + ' ms'}`}
                     onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
                     onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
@@ -866,11 +875,12 @@ class Dashboard extends Component {
                     ))}
                   />
                   <Text
-                    x={leftLinex1 + 10 + 75}
+                    x={leftLinex1 + 10*s + 75*s}
                     y={style.style.y + (style.style.height - tfs) / 2}
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
+                    scale={sf}
                     text={`Max: ${style.data.messageCount === 0 ? '-' : style.data.max.toFixed(0) + ' ms'}`}
                     onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
                     onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
@@ -879,11 +889,12 @@ class Dashboard extends Component {
                     ))}
                   />
                   <Text
-                    x={leftLinex1 + 10 + 150}
+                    x={leftLinex1 + 10*s + 150*s}
                     y={style.style.y + (style.style.height - tfs) / 2}
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
+                    scale={sf}
                     text={`Count: ${style.data.messageCount.toFixed(0)}`}
                   />
                 </Group>
@@ -895,7 +906,7 @@ class Dashboard extends Component {
     </Group>;
 
     return (
-      <Stage ref={input => { this.stageRef = input; }} width={window.innerWidth} height={window.innerHeight}>
+      <Stage ref={input => { this.stageRef = input; }} width={window.innerWidth} height={window.innerHeight} >
         <Layer>
           {devices}
           <Group>
@@ -910,43 +921,43 @@ class Dashboard extends Component {
               onClick={this.toggleExpand}
             />
             <KonvaImage
-              x={b2x + 20}
-              y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3) / 2}
+              x={b2x + 20*s}
+              y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3*s) / 2}
               image={this.iotHubImage}
-              width={lw * 1.3}
-              height={lw * 1.3}
+              width={lw * 1.3*s}
+              height={lw * 1.3*s}
             />
             <Text
-              x={b2x + 20 + lw * 1.3 + 20}
-              y={b1y - b2h * 1.7 / 2 + (b2h - 16) / 2}
-              fontSize={16}
-              height={16}
+              x={b2x + 20*s + lw * 1.3*s + 20*s}
+              y={b1y - b2h * 1.7 / 2 + (b2h - 16*s) / 2}
+              fontSize={20*s}
+              height={20*s}
               text={this.state.iotHubName.length <= 14 ? this.state.iotHubName : this.state.iotHubName.substring(0, 13) + '...'}
             />
             <Text
-              x={b2x + 20}
+              x={b2x + 20*s}
               y={b1y - b2h * 1.7 / 2 + b2h}
-              fontSize={t2fs}
-              height={t2fs}
+              fontSize={t2fs*1.1*s}
+              height={t2fs*1.1*s}
               fill={"rgba(0, 0, 0, 0.65)"}
               text={"Device connected: " + this.state.connectedDevices || 0}
             />
 
             <Text
-              x={b2x + 20}
-              y={b1y - b2h * 1.7 / 2 + b2h + t2fs + 5}
-              fontSize={t2fs}
-              height={t2fs}
+              x={b2x + 20*s}
+              y={b1y - b2h * 1.7 / 2 + b2h + t2fs*1.1*s + 5*s}
+              fontSize={t2fs*1.1*s}
+              height={t2fs*1.1*s}
               fill={"rgba(0, 0, 0, 0.65)"}
               text={"Device registered: " + this.state.registeredDevices || 0}
             />
 
 
             <Text
-              x={b2x + 20}
-              y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 2 + 10}
-              fontSize={t2fs}
-              height={t2fs}
+              x={b2x + 20*s}
+              y={b1y - b2h * 1.7 / 2 + b2h + t2fs*1.1 * 2*s + 10*s}
+              fontSize={t2fs*1.1*s}
+              height={t2fs*1.1*s}
               fill={"rgba(0, 0, 0, 0.65)"}
               text={"Unmatched messages: " + this.state.unmatchedNumber}
             />
@@ -978,29 +989,29 @@ class Dashboard extends Component {
                   />
 
                     <Path
-                      x={b3x + 3}
-                      y={style.style.y + 3}
+                      x={b3x + 3*s}
+                      y={style.style.y + 3*s}
                       fill="#0072c6"
                       data={SvgEndpoint}
                       scale={{
-                        x: 50 / 24 * 0.8,
-                        y: 50 / 26 * 0.8,
+                        x: 50 / 24 * 0.8*s,
+                        y: 50 / 26 * 0.8*s,
                       }}
                     />
 
                     <KonvaImage
-                      x={b3x + 20}
-                      y={style.style.y + (style.style.height - lw + 5) / 2}
+                      x={b3x + 20*s}
+                      y={style.style.y + (style.style.height - lw*s + 5*s) / 2}
                       image={endpointImages[style.data.type]}
-                      width={lw * 1}
-                      height={lw * 1}
+                      width={lw * 1*s}
+                      height={lw * 1*s}
                     />
 
                     <Text
-                      x={b3x + 20 + 35 + 20}
-                      y={style.style.y + (style.style.height - tfs) / 2}
-                      fontSize={tfs}
-                      height={tfs}
+                      x={b3x + 20*s + 35*s + 20*s}
+                      y={style.style.y + (style.style.height - tfs*s) / 2}
+                      fontSize={tfs*s}
+                      height={tfs*s}
                       text={style.data.name}
                     />
                   </Group>)}
@@ -1036,10 +1047,11 @@ class Dashboard extends Component {
                   {styles.map(style =>
                     <Group key={style.data.name}>
                       <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10}
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10*s}
                         y={style.style.y + (style.style.height - tfs) / 2}
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
+                        scale={sf}
                         text={`Avg: ${style.data.avg.toFixed(0)} ms`}
                         onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
                         onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
@@ -1048,10 +1060,11 @@ class Dashboard extends Component {
                         ))}
                       />
                       <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 75}
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10*s + 75*s}
                         y={style.style.y + (style.style.height - tfs) / 2}
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
+                        scale={sf}
                         text={`Max: ${style.data.max.toFixed(0)} ms`}
                         onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
                         onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
@@ -1060,10 +1073,11 @@ class Dashboard extends Component {
                         ))}
                       />
                       <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 + 150}
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10*s + 150*s}
                         y={style.style.y + (style.style.height - tfs) / 2}
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
+                        scale={sf}
                         text={`Count: ${style.data.messageCount.toFixed(0)}`}
                       />
                     </Group>
