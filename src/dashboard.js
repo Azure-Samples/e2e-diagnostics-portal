@@ -59,6 +59,16 @@ class Dashboard extends Component {
     fetch(this.getApiDomain() + '/api/device?init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
       let devices = data.devices;
       let currentDeviceMap = this.state.expand ? this.state.devices : this.state.toggleDevices;
+      let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;
+      let toggleDevice = toggleDeviceMap.get('All Devices') || {
+        name: 'All Devices',
+        avg: 0,
+        max: -1,
+        maxId: "",
+        avgSize: 0,
+        messageCount: 0,
+      };
+      toggleDeviceMap.set('All Devices', toggleDevice);
       devices.sort((a, b) => {
         if (a.connected && !b.connected) {
           return -1;
@@ -98,6 +108,7 @@ class Dashboard extends Component {
         connectedDevices: connectedNumber,
         registeredDevices: devices.length,
         [this.state.expand ? 'devices' : 'toggleDevices']: currentDeviceMap,
+        [this.state.expand ? 'toggleDevices' : 'devices']: toggleDeviceMap,
         iotHubName: data.iothub,
       });
     }).catch((e) => {
@@ -141,7 +152,7 @@ class Dashboard extends Component {
       let [startDate, endDate] = this.getCurrentTimeWindow();
 
       let toggleDeviceCount = 0;
-      let toggleDeviceMax = 0;
+      let toggleDeviceMax = -1;
       let toggleDeviceMaxId = "";
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
@@ -321,8 +332,8 @@ class Dashboard extends Component {
         }
       }
 
-      toggleDevice.avg = toggleDeviceSum / toggleDeviceCount;
-      toggleDevice.avgSize = toggleDeviceSumSize / toggleDeviceCount;
+      toggleDevice.avg = toggleDeviceCount !== 0 ? toggleDeviceSum / toggleDeviceCount : 0;
+      toggleDevice.avgSize = toggleDeviceCount !== 0 ? toggleDeviceSumSize / toggleDeviceCount : 0;
       toggleDevice.messageCount = toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
       toggleDevice.maxId = toggleDeviceMaxId;
