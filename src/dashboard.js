@@ -11,6 +11,10 @@ import SvgExpand from '../asset/expand.svg';
 import SvgEndpoint from '../asset/endpoint.svg';
 import PngEventhub from '../asset/eventhub.png';
 import SvgCompress from '../asset/compress.svg';
+import PngDiagnosticOn from '../asset/diagnostic-on.png';
+import PngDiagnosticOff from '../asset/diagnostic-off.png';
+import PngStorage from '../asset/storage.png';
+import PngServiceBus from '../asset/servicebus.png';
 import { setInterval } from 'timers';
 
 class Dashboard extends Component {
@@ -40,14 +44,60 @@ class Dashboard extends Component {
     this.iotHubImage.src = PngIotHub;
     this.eventHubImage = new Image();
     this.eventHubImage.src = PngEventhub;
+    this.diagnosticOnImage = new Image();
+    this.diagnosticOnImage.src = PngDiagnosticOn;
+    this.diagnosticOffImage = new Image();
+    this.diagnosticOffImage.src = PngDiagnosticOff;
+    this.storageImage = new Image();
+    this.storageImage.src = PngStorage;
+    this.serviceBusImage = new Image();
+    this.serviceBusImage.src = PngServiceBus;
     this.startOfTimestamp = new Date(config.startTime);
   }
 
   getDeviceNumber = () => {
     fetch(this.getApiDomain() + '/api/device?init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
+      let devices = data.devices;
+      let currentDeviceMap = this.state.expand ? this.state.devices : this.state.toggleDevices;
+      devices.sort((a, b) => {
+        if (a.connected && !b.connected) {
+          return -1;
+        }
+        if (b.connected && !a.connected) {
+          return 1;
+        }
+      });
+      let connectedNumber = 0;
+      for (let device of devices) {
+        if (device.connected) {
+          connectedNumber++;
+        }
+        if (device.diagnosticDesired != undefined) {
+          if (currentDeviceMap.has(device.deviceId)) {
+            let d = currentDeviceMap.get(device.deviceId);
+            d.connected = device.connected;
+            d.diagnosticDesired = device.diagnosticDesired;
+            d.diagnosticReported = device.diagnosticReported;
+          } else {
+            let d = {
+              name: device.deviceId,
+              connected: device.connected,
+              diagnosticDesired: device.diagnosticDesired,
+              diagnosticReported: device.diagnosticReported,
+              avg: 0,
+              max: -1,
+              maxId: "",
+              avgSize: 0,
+              messageCount: 0,
+            };
+            currentDeviceMap.set(device.deviceId, d);
+          }
+        }
+      }
       this.setState({
-        connectedDevices: data.connected,
-        registeredDevices: data.registered,
+        connectedDevices: connectedNumber,
+        registeredDevices: devices.length,
+        [this.state.expand ? 'devices' : 'toggleDevices']: currentDeviceMap,
         iotHubName: data.iothub,
       });
     }).catch((e) => {
@@ -62,16 +112,16 @@ class Dashboard extends Component {
     return [start, end];
   }
 
-  refresh = (firstCall,retry, callback) => {
+  refresh = (firstCall, retry, callback) => {
     if (firstCall && !retry) {
       this.reset();
       this.showLoading();
     }
     let records = this.records;
     let url;
-    if(firstCall) {
+    if (firstCall) {
       url = this.getApiDomain() + '/api/metric/init?span=' + this.state.spanInMinutes + '&init=' + encodeURIComponent(this.initDate.toISOString());
-    }else {
+    } else {
       url = this.getApiDomain() + '/api/metric?init=' + encodeURIComponent(this.initDate.toISOString());
     }
     fetch(url).then(results => results.json()).then(data => {
@@ -82,7 +132,7 @@ class Dashboard extends Component {
       let toggleDevice = toggleDeviceMap.get('All Devices') || {
         name: 'All Devices',
         avg: 0,
-        max: 0,
+        max: -1,
         maxId: "",
         avgSize: 0,
         messageCount: 0,
@@ -96,7 +146,7 @@ class Dashboard extends Component {
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
       let p1 = performance.now();
-      if(data.source === 'ai') {
+      if (data.source === 'ai') {
         this.setState({
           sourceAI: true
         });
@@ -134,6 +184,7 @@ class Dashboard extends Component {
             } else {
               let value = {
                 name: item.properties.endpointName,
+                type: item.properties.endpointType,
                 avg: item.durationMs,
                 max: item.durationMs,
                 maxId: item.correlationId,
@@ -303,7 +354,7 @@ class Dashboard extends Component {
       if (firstCall) {
         this.hideLoading();
       }
-    }).catch(error=>{
+    }).catch(error => {
       callback(error);
     });
   }
@@ -453,7 +504,7 @@ class Dashboard extends Component {
 
   scheduleFirstRefreshWithRetry = (retry = false) => {
     console.log('schedule start');
-    this.refresh(true,retry, (err) => {
+    this.refresh(true, retry, (err) => {
       if (err) {
         console.log('schedule with error, will retry')
         this.scheduleFirstRefreshWithRetry(true);
@@ -474,7 +525,7 @@ class Dashboard extends Component {
           this.rightLineAnimationHandler(3);
         }, 1200)
         this.refreshInterval = window.setInterval(() => {
-          this.refresh(false,false, () => {
+          this.refresh(false, false, () => {
           });
         }, this.queryMetricSpanInSeconds * 1000)
       }
@@ -538,7 +589,7 @@ class Dashboard extends Component {
   }
 
   getApiDomain = () => {
-    if(config.apiDomain) {
+    if (config.apiDomain) {
       return config.apiDomain;
     }
     // let domain = "https://" + window.location.hostname;
@@ -591,7 +642,7 @@ class Dashboard extends Component {
     let rightPadding = 400;
     let timePicker = 200;
     let ch = window.innerHeight;
-    let cw = window.innerWidth - 40; // minus the width of sidebar
+    let cw = window.innerWidth; // minus the width of sidebar
     if (cw > 1922) {
       let space = cw - 1922;
       leftPadding += space / 2;
@@ -675,10 +726,26 @@ class Dashboard extends Component {
                 shadowBlur={5}
                 cornerRadius={5}
               />
+                <KonvaImage
+                  x={b1x + 8}
+                  y={style.style.y + 8}
+                  image={this.state.expand ? (style.data.diagnosticDesired !== 0 ? this.diagnosticOnImage : this.diagnosticOffImage) : null}
+                  width={10}
+                  height={10}
+                />
+                <Text
+                  x={b1x + 20}
+                  y={style.style.y + 8}
+                  fontSize={9}
+                  height={9}
+                  fill="rgba(0,0,0,0.9)"
+                  text={this.state.expand ? style.data.diagnosticDesired +'' : ''}
+                  opacity={style.style.opacity}
+                />
                 <Path
                   x={b1x + 20}
                   y={style.style.y + (style.style.height - lw) / 2}
-                  fill="#0072c6"
+                  fill={this.state.expand ? (style.data.connected ? "#0072c6" : "#aaaaaa") : (this.state.connectedDevices !== 0 ? "#0072c6" : "#aaaaaa")}
                   data={SvgChip}
                   opacity={style.style.opacity}
                   scale={{
@@ -702,7 +769,7 @@ class Dashboard extends Component {
                   fontSize={t2fs}
                   height={t2fs}
                   fill={"rgba(0, 0, 0, 0.65)"}
-                  text={"Avg size: " + this.getReadableSize(style.data.avgSize)}
+                  text={"Avg size: " + (style.data.avgSize === 0 ? '-' : this.getReadableSize(style.data.avgSize))}
                 />
 
                 <Text
@@ -711,7 +778,7 @@ class Dashboard extends Component {
                   fontSize={t2fs}
                   height={t2fs}
                   fill={"rgba(0, 0, 0, 0.65)"}
-                  text={"Sum: " + this.getReadableSize(style.data.avgSize * style.data.messageCount)}
+                  text={"Sum: " + (style.data.avgSize * style.data.messageCount === 0 ? '-' : this.getReadableSize(style.data.avgSize * style.data.messageCount))}
                 />
 
               </Group>)}
@@ -791,7 +858,7 @@ class Dashboard extends Component {
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
-                    text={`Avg: ${style.data.avg.toFixed(0)} ms`}
+                    text={`Avg: ${style.data.messageCount === 0 ? '-' : style.data.avg.toFixed(0) + ' ms'}`}
                     onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
                     onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
                     onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
@@ -804,7 +871,7 @@ class Dashboard extends Component {
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
                     height={t2fs * 0.75}
-                    text={`Max: ${style.data.max.toFixed(0)} ms`}
+                    text={`Max: ${style.data.messageCount === 0 ? '-' : style.data.max.toFixed(0) + ' ms'}`}
                     onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
                     onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
                     onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
@@ -893,6 +960,12 @@ class Dashboard extends Component {
 
             {
               (styles) => {
+                let endpointImages = {
+                  "EventHub": this.eventHubImage,
+                  "AzureStorageContainer": this.storageImage,
+                  "ServiceBusQueue": this.serviceBusImage,
+                  "ServiceBusTopic": this.serviceBusImage,
+                };
                 return <Group>
                   {styles.map(style => <Group key={style.data.name}><Rect
                     x={b3x}
@@ -918,7 +991,7 @@ class Dashboard extends Component {
                     <KonvaImage
                       x={b3x + 20}
                       y={style.style.y + (style.style.height - lw + 5) / 2}
-                      image={this.eventHubImage}
+                      image={endpointImages[style.data.type]}
                       width={lw * 1}
                       height={lw * 1}
                     />

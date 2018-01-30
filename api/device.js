@@ -7,6 +7,11 @@ var queue = require('express-queue');
 let requestNum = 0;
 let cacheMissNum = 0;
 
+const twinKey = "__e2e_diag_sample_rate";
+const cacheSpanInSeconds = 10;
+
+let Registry;
+
 router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
   requestNum++;
   let cachedDevice = cache.get('device');
@@ -37,26 +42,54 @@ router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
   if (m) {
     iothubName = m[1];
   }
-  var Registry = require('azure-iothub').Registry.fromConnectionString(connectionString);
+  if(!Registry) {
+    Registry = require('azure-iothub').Registry.fromConnectionString(connectionString);
+  }
+  
   Registry.list((err, deviceList) => {
     if (err) {
       res.status(500).send('Could not trigger job: ' + err.message);
       return;
     } else {
-      var connectedNum = 0;
+      let deviceArray = [];
+      let promises = [];
       deviceList.forEach((device) => {
-        if (device.connectionState === "Connected") connectedNum++;
+        let d = {
+          deviceId: device.deviceId,
+          connected: device.connectionState === "Connected"
+        }
+        deviceArray.push(d);
+        promises.push(getTwin(device.deviceId));
       });
-      let result = {
-        registered: deviceList.length,
-        connected: connectedNum,
-        iothub: iothubName,
-      };
-      cache.put('device', result, 5000);
-      res.send(result);
+      Promise.all(promises).then(results => {
+        for(let twin of results) {
+          let device = deviceArray.find(d=> d.deviceId === twin.deviceId);
+          device.diagnosticDesired = twin.properties.desired[twinKey];
+          device.diagnosticReported = twin.properties.reported[twinKey];
+        }
+        let result = {
+          iothub: iothubName,
+          devices: deviceArray
+        };
+        cache.put('device', result, cacheSpanInSeconds*1000);
+        res.send(result);
+      });
     }
   });
 });
+
+function getTwin(deviceId) {
+  return new Promise((resolve,reject)=>{
+    Registry.getTwin(deviceId, (err, twin)=>{
+      if(err) {
+        console.log(err)
+        resolve();
+      }else {
+        resolve(twin);
+      }
+    });
+  })
+}
 
 router.get('/debug', (req,res)=>{
   res.json({
