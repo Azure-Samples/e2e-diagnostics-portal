@@ -1,6 +1,5 @@
 var express = require('express');
 var router = express.Router();
-var uuid = require('uuid');
 var cache = require('memory-cache');
 var queue = require('express-queue');
 
