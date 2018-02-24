@@ -22,8 +22,9 @@ class Dashboard extends Component {
     super(props);
     this.state = {
       expand: false,
-      connectedDevices: undefined,
-      registeredDevices: undefined,
+      connectedDevices: 0,
+      registeredDevices: 0,
+      diagnosticOnDevices: 0,
       devices: new Map(),
       toggleDevices: new Map(),
       endpoints: new Map(),
@@ -78,6 +79,7 @@ class Dashboard extends Component {
         }
       });
       let connectedNumber = 0;
+      let diagnosticOnNumber = 0;
       for (let device of devices) {
         if (device.connected) {
           connectedNumber++;
@@ -102,11 +104,13 @@ class Dashboard extends Component {
             };
             currentDeviceMap.set(device.deviceId, d);
           }
+          diagnosticOnNumber++;
         }
       }
       this.setState({
         connectedDevices: connectedNumber,
         registeredDevices: devices.length,
+        diagnosticOnDevices: diagnosticOnNumber,
         [this.state.expand ? 'devices' : 'toggleDevices']: currentDeviceMap,
         [this.state.expand ? 'toggleDevices' : 'devices']: toggleDeviceMap,
         iotHubName: data.iothub,
@@ -192,16 +196,16 @@ class Dashboard extends Component {
               value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
               value.messageCount++;
               endpoints.set(item.properties.endpointName, value);
-            } else {
-              let value = {
-                name: item.properties.endpointName,
-                type: item.properties.endpointType,
-                avg: item.durationMs,
-                max: item.durationMs,
-                maxId: item.correlationId,
-                messageCount: 1
-              }
-              endpoints.set(item.properties.endpointName, value);
+            // } else {
+            //   let value = {
+            //     name: item.properties.endpointName,
+            //     type: item.properties.endpointType,
+            //     avg: item.durationMs,
+            //     max: item.durationMs,
+            //     maxId: item.correlationId,
+            //     messageCount: 1
+            //   }
+            //   endpoints.set(item.properties.endpointName, value);
             }
             unmatched.set(correlationPrefix, false);
           } else if (item.operationName === 'DiagnosticIoTHubIngress') {
@@ -215,16 +219,16 @@ class Dashboard extends Component {
               value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
               value.messageCount++;
               devices.set(item.properties.deviceId, value);
-            } else {
-              let value = {
-                name: item.properties.deviceId,
-                avg: item.durationMs,
-                max: item.durationMs,
-                maxId: item.correlationId,
-                avgSize: item.properties.messageSize,
-                messageCount: 1
-              }
-              devices.set(item.properties.deviceId, value);
+            // } else {
+            //   let value = {
+            //     name: item.properties.deviceId,
+            //     avg: item.durationMs,
+            //     max: item.durationMs,
+            //     maxId: item.correlationId,
+            //     avgSize: item.properties.messageSize,
+            //     messageCount: 1
+            //   }
+            //   devices.set(item.properties.deviceId, value);
             }
 
             if (!unmatched.has(correlationPrefix)) {
@@ -337,9 +341,7 @@ class Dashboard extends Component {
       toggleDevice.messageCount = toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
       toggleDevice.maxId = toggleDeviceMaxId;
-      if (devices.size !== 0) {
-        toggleDeviceMap.set('All Devices', toggleDevice);
-      }
+      toggleDeviceMap.set('All Devices', toggleDevice);
 
       let unmatchedNumber = 0;
       for (let v of unmatched.values()) {
@@ -758,6 +760,15 @@ class Dashboard extends Component {
                   text={this.state.expand ? style.data.diagnosticDesired + '' : ''}
                   opacity={style.style.opacity}
                 />
+                <Text
+                  x={b1x}
+                  y={style.style.y +style.style.height +  8*s*2}
+                  fontSize={12*s}
+                  height={12*s}
+                  fill="rgba(0,0,0,0.7)"
+                  text={this.state.expand ? '' : this.state.diagnosticOnDevices + ' device(s) with diagnostic enabled'}
+                  opacity={style.style.opacity}
+                />
                 <Path
                   x={b1x + 20*s}
                   y={style.style.y + (style.style.height - 26*1.8*s) / 2}
@@ -801,7 +812,9 @@ class Dashboard extends Component {
                 />
 
               </Group>)}
-              <Group>
+              {
+                this.state.diagnosticOnDevices !== 0 &&
+                <Group>
                 <Rect
                   x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs *s}
                   y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7 *s) / 2}
@@ -840,6 +853,7 @@ class Dashboard extends Component {
                   }}
                 />
               </Group>
+              }
             </Group>
           }
         }

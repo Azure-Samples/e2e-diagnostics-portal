@@ -41,10 +41,10 @@ router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
   if (m) {
     iothubName = m[1];
   }
-  if(!Registry) {
+  if (!Registry) {
     Registry = require('azure-iothub').Registry.fromConnectionString(connectionString);
   }
-  
+
   Registry.list((err, deviceList) => {
     if (err) {
       res.status(500).send('Could not trigger job: ' + err.message);
@@ -61,8 +61,11 @@ router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
         promises.push(getTwin(device.deviceId));
       });
       Promise.all(promises).then(results => {
-        for(let twin of results) {
-          let device = deviceArray.find(d=> d.deviceId === twin.deviceId);
+        for (let twin of results) {
+          if (!twin) {
+            continue;
+          }
+          let device = deviceArray.find(d => d.deviceId === twin.deviceId);
           device.diagnosticDesired = twin.properties.desired[twinKey];
           device.diagnosticReported = twin.properties.reported[twinKey];
         }
@@ -70,7 +73,7 @@ router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
           iothub: iothubName,
           devices: deviceArray
         };
-        cache.put('device', result, cacheSpanInSeconds*1000);
+        cache.put('device', result, cacheSpanInSeconds * 1000);
         res.send(result);
       });
     }
@@ -78,19 +81,19 @@ router.get('/', queue({ activeLimit: 1, queuedLimit: -1 }), (req, res) => {
 });
 
 function getTwin(deviceId) {
-  return new Promise((resolve,reject)=>{
-    Registry.getTwin(deviceId, (err, twin)=>{
-      if(err) {
+  return new Promise((resolve, reject) => {
+    Registry.getTwin(deviceId, (err, twin) => {
+      if (err) {
         console.log(err)
         resolve();
-      }else {
+      } else {
         resolve(twin);
       }
     });
   })
 }
 
-router.get('/debug', (req,res)=>{
+router.get('/debug', (req, res) => {
   res.json({
     requestNum,
     cacheMissNum,
