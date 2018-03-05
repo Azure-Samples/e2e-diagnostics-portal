@@ -196,16 +196,16 @@ class Dashboard extends Component {
               value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
               value.messageCount++;
               endpoints.set(item.properties.endpointName, value);
-            // } else {
-            //   let value = {
-            //     name: item.properties.endpointName,
-            //     type: item.properties.endpointType,
-            //     avg: item.durationMs,
-            //     max: item.durationMs,
-            //     maxId: item.correlationId,
-            //     messageCount: 1
-            //   }
-            //   endpoints.set(item.properties.endpointName, value);
+            } else {
+              let value = {
+                name: item.properties.endpointName,
+                type: item.properties.endpointType,
+                avg: item.durationMs,
+                max: item.durationMs,
+                maxId: item.correlationId,
+                messageCount: 1
+              }
+              endpoints.set(item.properties.endpointName, value);
             }
             unmatched.set(correlationPrefix, false);
           } else if (item.operationName === 'DiagnosticIoTHubIngress') {
@@ -1037,7 +1037,7 @@ class Dashboard extends Component {
                       y={style.style.y + (style.style.height - tfs*s) / 2}
                       fontSize={tfs*s}
                       height={tfs*s}
-                      text={style.data.name}
+                      text={style.data.name.length <= 7 ? style.data.name : style.data.name.substring(0,7)+'...'}
                     />
                   </Group>)}
                 </Group>
