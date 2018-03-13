@@ -804,9 +804,9 @@ class Dashboard extends Component {
               },
               {
                 Header: "properties",
-                accessor: d => JSON.stringify(d.properties),
+                accessor: d => d.properties.messageSize ? JSON.stringify(d.properties) : JSON.stringify(d.properties).replace(',\"messageSize":null', ''),
                 id: 'properties',
-                minWidth: 550,
+                minWidth: 400,
                 getProps: (state, rowInfo, column, instance) => ({
                   title: rowInfo ? rowInfo.row.properties : ""
                 })
