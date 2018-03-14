@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+﻿import React, { Component } from 'react';
 import './dashboard.scss';
 import gzip from 'gzip-js';
 import { Motion, TransitionMotion, spring, presets } from 'react-motion';
@@ -15,8 +15,13 @@ import PngDiagnosticOn from '../asset/diagnostic-on.png';
 import PngDiagnosticOff from '../asset/diagnostic-off.png';
 import PngStorage from '../asset/storage.png';
 import PngServiceBus from '../asset/servicebus.png';
-import PngDeviceOnlineRatio from '../asset/onlineRatio.png'
+import PngCloseStorageTable from '../asset/close-table.png';
+import PngDeviceOnlineRatio from '../asset/onlineRatio.png';
 import { setInterval } from 'timers';
+
+// Import React Table
+import ReactTable from 'react-table';
+import 'react-table/react-table.css';
 
 class Dashboard extends Component {
   constructor(props) {
@@ -36,7 +41,9 @@ class Dashboard extends Component {
       loading: true,
       iotHubName: '',
       sourceAI: false,
-      showTooltip: false,
+      storageTable: [],
+      showStorageTable : false,
+      showTooltip: false
     };
     this.records = new Map();
     this.unmatchedMap = new Map();
@@ -69,7 +76,7 @@ class Dashboard extends Component {
         name: 'All Devices',
         avg: 0,
         max: -1,
-        maxId: "",
+        maxId: '',
         avgSize: 0,
         messageCount: 0,
       };
@@ -103,7 +110,7 @@ class Dashboard extends Component {
               onlineRatio: NaN,
               avg: 0,
               max: -1,
-              maxId: "",
+              maxId: '',
               avgSize: 0,
               messageCount: 0,
             };
@@ -173,7 +180,7 @@ class Dashboard extends Component {
         name: 'All Devices',
         avg: 0,
         max: -1,
-        maxId: "",
+        maxId: '',
         avgSize: 0,
         messageCount: 0,
       };
@@ -182,7 +189,7 @@ class Dashboard extends Component {
 
       let toggleDeviceCount = 0;
       let toggleDeviceMax = -1;
-      let toggleDeviceMaxId = "";
+      let toggleDeviceMaxId = '';
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
       let p1 = performance.now();
@@ -325,7 +332,7 @@ class Dashboard extends Component {
               endpoints.set(v.properties.endpointName, value);
             } else {
               if (value.maxId === v.correlationId) {
-                value.maxId = "";
+                value.maxId = '';
                 value.max = 0;
                 updateMaxEndpointsMap.set(value.name, true);
               }
@@ -345,7 +352,7 @@ class Dashboard extends Component {
               devices.set(v.properties.deviceId, value);
             } else {
               if (value.maxId === v.correlationId) {
-                value.maxId = "";
+                value.maxId = '';
                 value.max = 0;
                 updateMaxDevicesMap.set(value.name, true);
               }
@@ -440,6 +447,13 @@ class Dashboard extends Component {
       this.scheduleFirstRefreshWithRetry();
     });
     this.getDeviceNumberInterval = window.setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    if(this.state.showStorageTable && nextState.showStorageTable) {
+      return false;
+    }
+    return true;
   }
 
   componentDidUpdate() {
@@ -557,11 +571,11 @@ class Dashboard extends Component {
 
   getReadableSize = (num) => {
     if (num < 1024) {
-      return num.toFixed(0) + " Bytes";
+      return num.toFixed(0) + ' Bytes';
     } else if (num < 1024 * 1024) {
-      return (num / 1024).toFixed(0) + " KB";
+      return (num / 1024).toFixed(0) + ' KB';
     } else {
-      return (num / 1024 / 1024).toFixed(0) + " MB";
+      return (num / 1024 / 1024).toFixed(0) + ' MB';
     }
   }
 
@@ -632,7 +646,7 @@ class Dashboard extends Component {
   }
 
   encodeKustoQuery = (query) => {
-    let s1 = query + "\n";
+    let s1 = query + '\n';
     let s2 = gzip.zip(s1);
     let s3 = String.fromCharCode(...s2);
     let s4 = btoa(s3);
@@ -660,6 +674,36 @@ class Dashboard extends Component {
 
   openLinkInNewPage = (link) => {
     window.open(link);
+  }
+
+  // type 0 all devices, 1 one device, 2 endpoint
+  showAllStorageTable = (type, id) =>{
+    var table = [];
+    this.records.forEach((value,key)=>{
+      if(type === 0 && value.operationName === 'DiagnosticIoTHubIngress')
+      {
+        table.push(value);
+      }
+      else if (type === 1 && value.operationName === 'DiagnosticIoTHubIngress' && value.properties.deviceId === id)
+      {
+        table.push(value);
+      }
+      else if (type === 2 && value.operationName === 'DiagnosticIoTHubRouting')
+      {
+        table.push(value);
+      }
+    })
+    this.setState({
+      storageTable: table
+    });
+    this.showTable();
+  }
+
+  showStorageForSingleRecord=(correlationId)=>{
+    this.setState({
+      storageTable: [this.records.get(correlationId)]
+    });
+    this.showTable();
   }
 
   getApiDomain = () => {
@@ -710,6 +754,18 @@ class Dashboard extends Component {
     });
   }
 
+  showTable = () => {
+    this.setState({
+      showStorageTable: true
+    });
+  }
+
+  hideTable =()=> {
+    this.setState({
+      showStorageTable: false
+    });
+  }
+
   showTooltip = (event, tipText) => {
     this.setState({
       tooltipX: event.evt.clientX,
@@ -727,7 +783,7 @@ class Dashboard extends Component {
   }
 
   render() {
-    let ff = "Segoe UI";
+    let ff = 'Segoe UI';
     let leftPadding = 100;
     let rightPadding = 400;
     let timePicker = 200;
@@ -779,6 +835,95 @@ class Dashboard extends Component {
     let rightLineStyle = {
       progress: this.state.rightLineInAnimationProgress >= 2 ? spring(100, { stiffness: 60, damping: 15 }) : 0
     };
+
+    let getStorageTableView = () => {
+      if (this.state.showStorageTable) {
+        return <div className="overlay">
+          <img src={PngCloseStorageTable} width="30px" height="30px" className="png-close-storage-table-btn" onClick={this.hideTable}></img>
+          <ReactTable className="-striped -highlight storage-table"
+            data={this.state.storageTable}
+            columns={[
+              {
+                Header: "correlationId",
+                accessor: "correlationId",
+                minWidth: 200,
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.correlationId : ""
+                })
+              },
+              {
+                Header: "category",
+                accessor: "category",
+                minWidth: 150,
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.category : ""
+                })
+              },
+              {
+                Header: "durationMs",
+                accessor: "durationMs",
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.durationMs : ""
+                })
+              },
+              {
+                Header: "level",
+                accessor: "level",
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.level : ""
+                })
+              },
+              {
+                Header: "location",
+                accessor: "location",
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.location : ""
+                })
+              },
+              {
+                Header: "operationName",
+                accessor: "operationName",
+                minWidth: 250,
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.operationName : ""
+                })
+              },
+              {
+                Header: "properties",
+                accessor: d => d.properties.messageSize ? JSON.stringify(d.properties) : JSON.stringify(d.properties).replace(',\"messageSize":null', ''),
+                id: 'properties',
+                minWidth: 400,
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.properties : ""
+                })
+              },
+              {
+                Header: "resourceId",
+                accessor: "resourceId",
+                minWidth: 200,
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.resourceId : ""
+                })
+              },
+              {
+                Header: "time",
+                accessor: d => JSON.stringify(d.time),
+                id: 'time',
+                minWidth: 250,
+                getProps: (state, rowInfo, column, instance) => ({
+                  title: rowInfo ? rowInfo.row.time : ""
+                })
+              }
+            ]
+            }
+            defaultPageSize={20}
+          />
+        </div>;
+      }
+      else {
+        return null;
+      }
+    }
 
     let loading = <Layer><Group>
       <Rect
@@ -990,11 +1135,11 @@ class Dashboard extends Component {
                     height={t2fs * 0.75}
                     scale={sf}
                     text={`Avg: ${style.data.messageCount === 0 ? '-' : style.data.avg.toFixed(0) + ' ms'}`}
-                    onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
-                    onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
-                    onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                    onMouseEnter={this.changeCursorToPointer}
+                    onMouseLeave={this.changeCursorToDefault}
+                    onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                       this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), styles[0].data.name === 'All Devices' ? 0 : 1, style.data.name)
-                    ))}
+                    )):this.showAllStorageTable.bind(null, styles[0].data.name === 'All Devices' ? 0 : 1, style.data.name)}
                   />
                   <Text
                     x={leftLinex1 + 10 * s + 75 * s}
@@ -1004,11 +1149,11 @@ class Dashboard extends Component {
                     height={t2fs * 0.75}
                     scale={sf}
                     text={`Max: ${style.data.messageCount === 0 ? '-' : style.data.max.toFixed(0) + ' ms'}`}
-                    onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
-                    onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
-                    onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                    onMouseEnter={this.changeCursorToPointer}
+                    onMouseLeave={this.changeCursorToDefault}
+                    onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                       this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
-                    ))}
+                    )):this.showStorageForSingleRecord.bind(null, style.data.maxId)}
                   />
                   <Text
                     x={leftLinex1 + 10 * s + 150 * s}
@@ -1042,8 +1187,9 @@ class Dashboard extends Component {
       />
     </Layer>;
 
-
     return (
+      <div>
+       {getStorageTableView()}
       <Stage ref={input => { this.stageRef = input; }} width={window.innerWidth} height={window.innerHeight} >
         <Layer>
           {devices}
@@ -1089,7 +1235,6 @@ class Dashboard extends Component {
               fill={"rgba(0, 0, 0, 0.65)"}
               text={"Device registered: " + this.state.registeredDevices || 0}
             />
-
 
             <Text
               x={b2x + 20 * s}
@@ -1191,11 +1336,11 @@ class Dashboard extends Component {
                         height={t2fs * 0.75}
                         scale={sf}
                         text={`Avg: ${style.data.avg.toFixed(0)} ms`}
-                        onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
-                        onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
-                        onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                        onMouseEnter={this.changeCursorToPointer}
+                        onMouseLeave={this.changeCursorToDefault}
+                        onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                           this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), 2, style.data.name)
-                        ))}
+                        )) : this.showAllStorageTable.bind(null, 2, style.data.name)}
                       />
                       <Text
                         x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 75 * s}
@@ -1204,11 +1349,11 @@ class Dashboard extends Component {
                         height={t2fs * 0.75}
                         scale={sf}
                         text={`Max: ${style.data.max.toFixed(0)} ms`}
-                        onMouseEnter={this.state.sourceAI && this.changeCursorToPointer}
-                        onMouseLeave={this.state.sourceAI && this.changeCursorToDefault}
-                        onClick={this.state.sourceAI && this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                        onMouseEnter={ this.changeCursorToPointer}
+                        onMouseLeave={this.changeCursorToDefault}
+                        onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                           this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
-                        ))}
+                        )):this.showStorageForSingleRecord.bind(null, style.data.maxId)}
                       />
                       <Text
                         x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 150 * s}
@@ -1299,6 +1444,7 @@ class Dashboard extends Component {
         {this.state.loading && loading}
         {tooltipLayer}
       </Stage>
+      </div>
     );
   }
 }
