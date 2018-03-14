@@ -5,7 +5,7 @@ environment:
     secure: /eP90wR90nJew28JkNDO1HkdNN4FYkR88oyw1d7pDCoEtuS+llgfBvLQ6g0qw2OG
 branches:
   only:
-    - source
+    - master
 
 install:
 - ps: Install-Product node $env:nodejs_version
