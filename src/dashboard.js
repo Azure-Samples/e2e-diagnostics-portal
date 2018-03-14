@@ -15,6 +15,7 @@ import PngDiagnosticOn from '../asset/diagnostic-on.png';
 import PngDiagnosticOff from '../asset/diagnostic-off.png';
 import PngStorage from '../asset/storage.png';
 import PngServiceBus from '../asset/servicebus.png';
+import PngDeviceOnlineRatio from '../asset/onlineRatio.png'
 import { setInterval } from 'timers';
 
 class Dashboard extends Component {
@@ -35,6 +36,7 @@ class Dashboard extends Component {
       loading: true,
       iotHubName: '',
       sourceAI: false,
+      showTooltip: false,
     };
     this.records = new Map();
     this.unmatchedMap = new Map();
@@ -53,6 +55,8 @@ class Dashboard extends Component {
     this.storageImage.src = PngStorage;
     this.serviceBusImage = new Image();
     this.serviceBusImage.src = PngServiceBus;
+    this.onlineRatioImage = new Image();
+    this.onlineRatioImage.src = PngDeviceOnlineRatio;
     this.startOfTimestamp = new Date(config.startTime);
   }
 
@@ -96,6 +100,7 @@ class Dashboard extends Component {
               connected: device.connected,
               diagnosticDesired: device.diagnosticDesired,
               diagnosticReported: device.diagnosticReported,
+              onlineRatio: NaN,
               avg: 0,
               max: -1,
               maxId: "",
@@ -125,6 +130,26 @@ class Dashboard extends Component {
     let start = new Date();
     start.setMinutes(start.getMinutes() - this.state.spanInMinutes);
     return [start, end];
+  }
+
+  processDeviceConnStatus = (item) =>{
+    try{
+      let newRec = {
+        time: Date.parse(item.time),
+        isConn: item.operationName === 'deviceConnect'
+      };
+      let deviceId = JSON.parse(item.properties).deviceId;
+      let deviceConns = this.connRecords.get(deviceId);
+      if(!deviceConns){
+        deviceConns = [];
+        this.connRecords.set(deviceId, deviceConns);
+      }
+      if(!deviceConns.find(rec => rec.time === newRec.time)){
+        deviceConns.push(newRec);
+      }
+    }catch(e){
+      console.error("Failed to process device connection record: ", e.message);
+    }
   }
 
   refresh = (firstCall, retry, callback) => {
@@ -167,7 +192,9 @@ class Dashboard extends Component {
         });
       }
       for (let item of data.value) {
-        if (!records.has(item.correlationId)) {
+        if(item.operationName === 'deviceConnect' || item.operationName === 'deviceDisconnect'){
+          this.processDeviceConnStatus(item);
+        }else if (!records.has(item.correlationId)) {
           if (!this.state.iotHubName && item.resourceId) {
             let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
             if (matches && matches[1]) {
@@ -248,6 +275,35 @@ class Dashboard extends Component {
       let end = new Date();
       let start = new Date(end);
       start.setMinutes(start.getMinutes() - this.state.spanInMinutes);
+
+      //sort connection records and calculate online time
+      for(let [k, v] of this.connRecords){
+        let newRecs = v.filter(item => item.time >= start && item.time <= end);
+        newRecs.sort((item1, item2) => item1.time - item2.time);
+        this.connRecords.set(k, newRecs);
+      }
+      for(let [key, device] of devices){
+        let deviceConnRecords = this.connRecords.get(device.name);
+        if(!deviceConnRecords){
+          device.onlineRatio = device.connected ? 100 : 0;
+        }else{
+          let prevTime = start;
+          let isConnected = false;
+          let onlineTimeInMs = 0;
+          for(let rec of deviceConnRecords){
+            if(!rec.isConn){
+              onlineTimeInMs += rec.time - prevTime;
+            }
+            prevTime = rec.time;
+            isConnected = rec.isConn;
+          }
+          if(isConnected){
+            onlineTimeInMs += end - prevTime;
+          }
+          device.onlineRatio = Math.round(onlineTimeInMs / (this.state.spanInMinutes * 60000) * 100 * 100) / 100;
+        }
+      }
+
       for (let [k, v] of records) {
         if (v.time < start || v.time > end) {
           let correlationPrefix = v.correlationId.substring(8, 16);
@@ -560,6 +616,7 @@ class Dashboard extends Component {
 
   reset = () => {
     this.records = new Map();
+    this.connRecords = new Map();
     this.unmatchedMap = new Map();
     this.setState({
       expand: false,
@@ -649,6 +706,22 @@ class Dashboard extends Component {
     });
   }
 
+  showTooltip = (event, tipText) => {
+    this.setState({
+      tooltipX: event.evt.clientX,
+      tooltipY: event.evt.clientY-25,
+      tooltipText: tipText,
+      showTooltip: true
+    });
+  }
+
+  hideTooltip = () => {
+    this.setState({
+      showTooltip: false,
+      tooltipText: ''
+    })
+  }
+ 
   render() {
     let ff = "Segoe UI";
     let leftPadding = 100;
@@ -759,6 +832,26 @@ class Dashboard extends Component {
                   fill="rgba(0,0,0,0.9)"
                   text={this.state.expand ? style.data.diagnosticDesired + '' : ''}
                   opacity={style.style.opacity}
+                  onMouseEnter={(event) => this.showTooltip(event, "E2E diagnostic sampling rate")}
+                  onMouseLeave={this.hideTooltip}
+                />
+                <KonvaImage
+                  x={b1x + 20*s + 20*s}
+                  y={style.style.y + 8*s}
+                  image={(this.state.expand && !isNaN(style.data.onlineRatio)) ? this.onlineRatioImage : null}
+                  width={10*s}
+                  height={10*s}
+                />
+                <Text
+                  x={b1x + 20*s + 32*s}
+                  y={style.style.y + 8*s}
+                  fontSize={9*s}
+                  height={9*s}
+                  fill="rgba(0,0,0,0.9)"
+                  text={(this.state.expand && !isNaN(style.data.onlineRatio)) ? style.data.onlineRatio + '%' : ''}
+                  opacity={style.style.opacity}
+                  onMouseEnter={(event) => this.showTooltip(event, "Device online rate")}
+                  onMouseLeave={this.hideTooltip}
                 />
                 <Text
                   x={b1x}
@@ -929,6 +1022,22 @@ class Dashboard extends Component {
         }
       </TransitionMotion>
     </Group>;
+
+    let tooltipLayer = <Layer>
+      <Text
+        x={this.state.tooltipX}
+        y={this.state.tooltipY}
+        text={this.state.tooltipText}
+        fontFamily="Calibri"
+        fontSize={12}
+        padding={5}
+        textFill="yellow"
+        fill="black"
+        alpha={0.75}
+        visible={this.state.showTooltip}
+      />
+    </Layer>;
+
 
     return (
       <Stage ref={input => { this.stageRef = input; }} width={window.innerWidth} height={window.innerHeight} >
@@ -1184,6 +1293,7 @@ class Dashboard extends Component {
           </Group>
         </Layer>
         {this.state.loading && loading}
+        {tooltipLayer}
       </Stage>
     );
   }
