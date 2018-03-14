@@ -36,6 +36,7 @@ class Dashboard extends Component {
       loading: true,
       iotHubName: '',
       sourceAI: false,
+      showTooltip: false,
     };
     this.records = new Map();
     this.unmatchedMap = new Map();
@@ -143,10 +144,11 @@ class Dashboard extends Component {
         deviceConns = [];
         this.connRecords.set(deviceId, deviceConns);
       }
-      if(!deviceConns.find(rec => rec.time == newRec.time)){
+      if(!deviceConns.find(rec => rec.time === newRec.time)){
         deviceConns.push(newRec);
       }
     }catch(e){
+      console.error("Failed to process device connection record: ", e.message);
     }
   }
 
@@ -1291,7 +1293,7 @@ class Dashboard extends Component {
           </Group>
         </Layer>
         {this.state.loading && loading}
-        {tooltipLayer}
+        {this.state.showTooltip && tooltipLayer}
       </Stage>
     );
   }
