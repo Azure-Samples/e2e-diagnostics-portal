@@ -65,9 +65,6 @@ class Dashboard extends Component {
 
   getDeviceNumber = () => {
     fetch(this.getApiDomain() + '/api/device?init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
-      if(this.getDeviceNumberInterval == null) {
-        return;
-      }
       let devices = data.devices;
       let currentDeviceMap = this.state.expand ? this.state.devices : this.state.toggleDevices;
       let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;
@@ -138,9 +135,6 @@ class Dashboard extends Component {
   }
 
   refresh = (firstCall, retry, callback) => {
-    if(!firstCall && this.refreshInterval == null) {
-      return;
-    }
     if (firstCall && !retry) {
       this.reset();
       this.showLoading();
