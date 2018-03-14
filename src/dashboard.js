@@ -695,9 +695,12 @@ class Dashboard extends Component {
   }
 
   showStorageForSingleRecord=(correlationId)=>{
-    this.setState({
-      storageTable: [this.records.get(correlationId)]
-    });
+    if (correlationId && correlationId.length > 0)
+    {
+      this.setState({
+        storageTable: [this.records.get(correlationId)]
+      });
+    }
     this.showTable();
   }
 
