@@ -13,7 +13,7 @@ const kustoQuery = `customEvents | where name == 'E2EDiagnostics' and timestamp 
 const restUrl = "https://api.applicationinsights.io/v1/apps/%s/query?timespan=P7D&query=%s";
 const blobUrlTemplate = "resourceId=/SUBSCRIPTIONS/%s/RESOURCEGROUPS/%s/PROVIDERS/MICROSOFT.DEVICES/IOTHUBS/%s/y=%s/m=%s/d=%s/h=%s/m=00/PT1H.json";
 const kustoUrlTemplate = 'https://analytics.applicationinsights.io/subscriptions/%s/resourcegroups/%s/components/%s?q=%s&apptype=other&timespan=P1D';
-const containerName = 'insights-logs-e2ediagnostics';
+const containerNames = ['insights-logs-e2ediagnostics', 'insights-logs-connections'];
 const cacheSpanInMinutes = 1;
 const defaultSpanForRefreshInMinutes = 20;
 
@@ -153,19 +153,21 @@ function getStorageData(cs, storageSubscriptionId, storageResourceGroupName, sto
     fillZero(now.getUTCDate()),
     fillZero(now.getUTCHours())
   );
-  promises.push(_getStorageData(containerName, entryName));
-  if (now.getUTCHours() !== start.getUTCHours()) {
-    let entryName = node_util.format(blobUrlTemplate,
-      storageSubscriptionId.toUpperCase(),
-      storageResourceGroupName.toUpperCase(),
-      storageIoTHubName.toUpperCase(),
-      start.getUTCFullYear(),
-      fillZero(start.getUTCMonth() + 1),
-      fillZero(start.getUTCDate()),
-      fillZero(start.getUTCHours())
-    );
+  containerNames.forEach(function(containerName){
     promises.push(_getStorageData(containerName, entryName));
-  }
+    if (now.getUTCHours() !== start.getUTCHours()) {
+      let entryName = node_util.format(blobUrlTemplate,
+        storageSubscriptionId.toUpperCase(),
+        storageResourceGroupName.toUpperCase(),
+        storageIoTHubName.toUpperCase(),
+        start.getUTCFullYear(),
+        fillZero(start.getUTCMonth() + 1),
+        fillZero(start.getUTCDate()),
+        fillZero(start.getUTCHours())
+      );
+      promises.push(_getStorageData(containerName, entryName));
+    }
+  });
 
   Promise.all(promises).then(results => {
     let finalResults = [];
