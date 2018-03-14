@@ -632,14 +632,16 @@ class Dashboard extends Component {
         table.push(value);
       }
     })
-    this.state.storageTable = table;
+    this.setState({
+      storageTable: table
+    });
     this.showTable();
   }
 
   showStorageForSingleRecord=(correlationId)=>{
-    console.log(correlationId);
-    this.records.get(correlationId);
-    this.state.storageTable = [this.records.get(correlationId)];
+    this.setState({
+      storageTable: [this.records.get(correlationId)]
+    });
     this.showTable();
   }
 
@@ -1227,7 +1229,7 @@ class Dashboard extends Component {
                         onMouseLeave={this.changeCursorToDefault}
                         onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                           this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), 2, style.data.name)
-                        )): this.showAllStorageTable.bind(null,2, style.data.name)}
+                        )) : this.showAllStorageTable.bind(null, 2, style.data.name)}
                       />
                       <Text
                         x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10*s + 75*s}
