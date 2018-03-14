@@ -1293,7 +1293,7 @@ class Dashboard extends Component {
           </Group>
         </Layer>
         {this.state.loading && loading}
-        {this.state.showTooltip && tooltipLayer}
+        {tooltipLayer}
       </Stage>
     );
   }
