@@ -139,22 +139,22 @@ class Dashboard extends Component {
     return [start, end];
   }
 
-  processDeviceConnStatus = (item) =>{
-    try{
+  processDeviceConnStatus = (item) => {
+    try {
       let newRec = {
         time: Date.parse(item.time),
         isConn: item.operationName === 'deviceConnect'
       };
       let deviceId = JSON.parse(item.properties).deviceId;
       let deviceConns = this.connRecords.get(deviceId);
-      if(!deviceConns){
+      if (!deviceConns) {
         deviceConns = [];
         this.connRecords.set(deviceId, deviceConns);
       }
-      if(!deviceConns.find(rec => rec.time === newRec.time)){
+      if (!deviceConns.find(rec => rec.time === newRec.time)) {
         deviceConns.push(newRec);
       }
-    }catch(e){
+    } catch (e) {
       console.error("Failed to process device connection record: ", e.message);
     }
   }
@@ -199,76 +199,81 @@ class Dashboard extends Component {
         });
       }
       for (let item of data.value) {
-        if(item.operationName === 'deviceConnect' || item.operationName === 'deviceDisconnect'){
+        if (item.operationName === 'deviceConnect' || item.operationName === 'deviceDisconnect') {
           this.processDeviceConnStatus(item);
-        }else if (!records.has(item.correlationId)) {
-          if (!this.state.iotHubName && item.resourceId) {
-            let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
-            if (matches && matches[1]) {
-              this.setState({
-                iotHubName: matches[1]
-              });
-            }
-          }
-          let correlationPrefix = item.correlationId.substring(8, 16);
-          item.durationMs = parseFloat(item.durationMs);
-          item.time = new Date(item.time);
-          try {
-            item.properties = JSON.parse(item.properties);
-          } catch (e) {
-            continue;
-          }
-          item.properties.messageSize = parseFloat(item.properties.messageSize);
-          records.set(item.correlationId, item);
-          if (item.operationName === 'DiagnosticIoTHubRouting') {
-            if (endpoints.has(item.properties.endpointName)) {
-              let value = endpoints.get(item.properties.endpointName);
-              if (item.durationMs > value.max) {
-                value.max = item.durationMs;
-                value.maxId = item.correlationId;
+        } else if (item.operationName === 'DiagnosticIoTHubRouting' || item.operationName === 'DiagnosticIoTHubIngress') {
+          if (!records.has(item.correlationId)) {
+            if (!this.state.iotHubName && item.resourceId) {
+              let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
+              if (matches && matches[1]) {
+                this.setState({
+                  iotHubName: matches[1]
+                });
               }
-              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
-              value.messageCount++;
-              endpoints.set(item.properties.endpointName, value);
-            } else {
-              let value = {
-                name: item.properties.endpointName,
-                type: item.properties.endpointType,
-                avg: item.durationMs,
-                max: item.durationMs,
-                maxId: item.correlationId,
-                messageCount: 1
-              }
-              endpoints.set(item.properties.endpointName, value);
             }
-            unmatched.set(correlationPrefix, false);
-          } else if (item.operationName === 'DiagnosticIoTHubIngress') {
-            if (devices.has(item.properties.deviceId)) {
-              let value = devices.get(item.properties.deviceId);
-              if (item.durationMs > value.max) {
-                value.max = item.durationMs;
-                value.maxId = item.correlationId;
-              }
-              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
-              value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
-              value.messageCount++;
-              devices.set(item.properties.deviceId, value);
-              // } else {
-              //   let value = {
-              //     name: item.properties.deviceId,
-              //     avg: item.durationMs,
-              //     max: item.durationMs,
-              //     maxId: item.correlationId,
-              //     avgSize: item.properties.messageSize,
-              //     messageCount: 1
-              //   }
-              //   devices.set(item.properties.deviceId, value);
+            let correlationPrefix = item.correlationId.substring(8, 16);
+            item.durationMs = parseFloat(item.durationMs);
+            item.time = new Date(item.time);
+            try {
+              item.properties = JSON.parse(item.properties);
+            } catch (e) {
+              continue;
             }
+            item.properties.messageSize = parseFloat(item.properties.messageSize);
+            records.set(item.correlationId, item);
 
-            if (!unmatched.has(correlationPrefix)) {
-              unmatched.set(correlationPrefix, true);
+            if (item.operationName === 'DiagnosticIoTHubRouting') {
+              if (endpoints.has(item.properties.endpointName)) {
+                let value = endpoints.get(item.properties.endpointName);
+                if (item.durationMs > value.max) {
+                  value.max = item.durationMs;
+                  value.maxId = item.correlationId;
+                }
+                value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
+                value.messageCount++;
+                endpoints.set(item.properties.endpointName, value);
+              } else {
+                let value = {
+                  name: item.properties.endpointName,
+                  type: item.properties.endpointType,
+                  avg: item.durationMs,
+                  max: item.durationMs,
+                  maxId: item.correlationId,
+                  messageCount: 1
+                }
+                endpoints.set(item.properties.endpointName, value);
+              }
+              unmatched.set(correlationPrefix, false);
+            } else if (item.operationName === 'DiagnosticIoTHubIngress') {
+              if (devices.has(item.properties.deviceId)) {
+                let value = devices.get(item.properties.deviceId);
+                if (item.durationMs > value.max) {
+                  value.max = item.durationMs;
+                  value.maxId = item.correlationId;
+                }
+                value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
+                value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
+                value.messageCount++;
+                devices.set(item.properties.deviceId, value);
+                // } else {
+                //   let value = {
+                //     name: item.properties.deviceId,
+                //     avg: item.durationMs,
+                //     max: item.durationMs,
+                //     maxId: item.correlationId,
+                //     avgSize: item.properties.messageSize,
+                //     messageCount: 1
+                //   }
+                //   devices.set(item.properties.deviceId, value);
+              }
+
+              if (!unmatched.has(correlationPrefix)) {
+                unmatched.set(correlationPrefix, true);
+              }
             }
           }
+        } else {
+          console.log("Unprocessed record: ", item);
         }
       }
 
@@ -283,27 +288,27 @@ class Dashboard extends Component {
       start.setMinutes(start.getMinutes() - this.state.spanInMinutes);
 
       //sort connection records and calculate online time
-      for(let [k, v] of this.connRecords){
+      for (let [k, v] of this.connRecords) {
         let newRecs = v.filter(item => item.time >= start && item.time <= end);
         newRecs.sort((item1, item2) => item1.time - item2.time);
         this.connRecords.set(k, newRecs);
       }
-      for(let [key, device] of devices){
+      for (let [key, device] of devices) {
         let deviceConnRecords = this.connRecords.get(device.name);
-        if(!deviceConnRecords){
+        if (!deviceConnRecords) {
           device.onlineRatio = device.connected ? 100 : 0;
-        }else{
+        } else {
           let prevTime = start;
           let isConnected = false;
           let onlineTimeInMs = 0;
-          for(let rec of deviceConnRecords){
-            if(!rec.isConn){
+          for (let rec of deviceConnRecords) {
+            if (!rec.isConn) {
               onlineTimeInMs += rec.time - prevTime;
             }
             prevTime = rec.time;
             isConnected = rec.isConn;
           }
-          if(isConnected){
+          if (isConnected) {
             onlineTimeInMs += end - prevTime;
           }
           device.onlineRatio = Math.round(onlineTimeInMs / (this.state.spanInMinutes * 60000) * 100 * 100) / 100;
@@ -764,7 +769,7 @@ class Dashboard extends Component {
   showTooltip = (event, tipText) => {
     this.setState({
       tooltipX: event.evt.clientX,
-      tooltipY: event.evt.clientY-25,
+      tooltipY: event.evt.clientY - 25,
       tooltipText: tipText,
       showTooltip: true
     });
@@ -980,17 +985,17 @@ class Dashboard extends Component {
                   onMouseLeave={this.hideTooltip}
                 />
                 <KonvaImage
-                  x={b1x + 20*s + 20*s}
-                  y={style.style.y + 8*s}
+                  x={b1x + 20 * s + 20 * s}
+                  y={style.style.y + 8 * s}
                   image={(this.state.expand && !isNaN(style.data.onlineRatio)) ? this.onlineRatioImage : null}
-                  width={10*s}
-                  height={10*s}
+                  width={10 * s}
+                  height={10 * s}
                 />
                 <Text
-                  x={b1x + 20*s + 32*s}
-                  y={style.style.y + 8*s}
-                  fontSize={9*s}
-                  height={9*s}
+                  x={b1x + 20 * s + 32 * s}
+                  y={style.style.y + 8 * s}
+                  fontSize={9 * s}
+                  height={9 * s}
                   fill="rgba(0,0,0,0.9)"
                   text={(this.state.expand && !isNaN(style.data.onlineRatio)) ? style.data.onlineRatio + '%' : ''}
                   opacity={style.style.opacity}
