@@ -393,6 +393,13 @@ class Dashboard extends Component {
     this.getDeviceNumberInterval = window.setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
   }
 
+  shouldComponentUpdate(nextProps, nextState) {
+    if(this.state.showStorageTable && nextState.showStorageTable) {
+      return false;
+    }
+    return true;
+  }
+
   componentDidUpdate() {
   }
 
@@ -693,28 +700,12 @@ class Dashboard extends Component {
   showTable = () => {
     this.setState({
       showStorageTable: true
-    }, () => {
-      if(this.refreshInterval)
-      {
-        window.clearInterval(this.refreshInterval);
-        this.refreshInterval = null;
-      }
-      if(this.getDeviceNumberInterval)
-      {
-        window.clearTimeout(this.getDeviceNumberInterval);
-        this.getDeviceNumberInterval = null;
-      }
     });
   }
 
   hideTable =()=> {
     this.setState({
       showStorageTable: false
-    }, () => {
-      this.refreshInterval = window.setInterval(() => {
-        this.refresh(false, false);
-      }, this.queryMetricSpanInSeconds * 1000)
-      this.getDeviceNumberInterval = window.setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
     });
   }
 
