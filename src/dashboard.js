@@ -132,22 +132,22 @@ class Dashboard extends Component {
     return [start, end];
   }
 
-  processDeviceConnStatus = (item) =>{
-    try{
+  processDeviceConnStatus = (item) => {
+    try {
       let newRec = {
         time: Date.parse(item.time),
         isConn: item.operationName === 'deviceConnect'
       };
       let deviceId = JSON.parse(item.properties).deviceId;
       let deviceConns = this.connRecords.get(deviceId);
-      if(!deviceConns){
+      if (!deviceConns) {
         deviceConns = [];
         this.connRecords.set(deviceId, deviceConns);
       }
-      if(!deviceConns.find(rec => rec.time === newRec.time)){
+      if (!deviceConns.find(rec => rec.time === newRec.time)) {
         deviceConns.push(newRec);
       }
-    }catch(e){
+    } catch (e) {
       console.error("Failed to process device connection record: ", e.message);
     }
   }
@@ -192,76 +192,80 @@ class Dashboard extends Component {
         });
       }
       for (let item of data.value) {
-        if(item.operationName === 'deviceConnect' || item.operationName === 'deviceDisconnect'){
+        if (item.operationName === 'deviceConnect' || item.operationName === 'deviceDisconnect') {
           this.processDeviceConnStatus(item);
-        }else if (!records.has(item.correlationId)) {
-          if (!this.state.iotHubName && item.resourceId) {
-            let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
-            if (matches && matches[1]) {
-              this.setState({
-                iotHubName: matches[1]
-              });
-            }
-          }
-          let correlationPrefix = item.correlationId.substring(8, 16);
-          item.durationMs = parseFloat(item.durationMs);
-          item.time = new Date(item.time);
-          try {
-            item.properties = JSON.parse(item.properties);
-          } catch (e) {
-            continue;
-          }
-          item.properties.messageSize = parseFloat(item.properties.messageSize);
-          records.set(item.correlationId, item);
-          if (item.operationName === 'DiagnosticIoTHubRouting') {
-            if (endpoints.has(item.properties.endpointName)) {
-              let value = endpoints.get(item.properties.endpointName);
-              if (item.durationMs > value.max) {
-                value.max = item.durationMs;
-                value.maxId = item.correlationId;
+        } else if (item.operationName === 'DiagnosticIoTHubRouting' || item.operationName === 'DiagnosticIoTHubIngress') {
+          if (!records.has(item.correlationId)) {
+            if (!this.state.iotHubName && item.resourceId) {
+              let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
+              if (matches && matches[1]) {
+                this.setState({
+                  iotHubName: matches[1]
+                });
               }
-              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
-              value.messageCount++;
-              endpoints.set(item.properties.endpointName, value);
-            } else {
-              let value = {
-                name: item.properties.endpointName,
-                type: item.properties.endpointType,
-                avg: item.durationMs,
-                max: item.durationMs,
-                maxId: item.correlationId,
-                messageCount: 1
-              }
-              endpoints.set(item.properties.endpointName, value);
             }
-            unmatched.set(correlationPrefix, false);
-          } else if (item.operationName === 'DiagnosticIoTHubIngress') {
-            if (devices.has(item.properties.deviceId)) {
-              let value = devices.get(item.properties.deviceId);
-              if (item.durationMs > value.max) {
-                value.max = item.durationMs;
-                value.maxId = item.correlationId;
-              }
-              value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
-              value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
-              value.messageCount++;
-              devices.set(item.properties.deviceId, value);
-            // } else {
-            //   let value = {
-            //     name: item.properties.deviceId,
-            //     avg: item.durationMs,
-            //     max: item.durationMs,
-            //     maxId: item.correlationId,
-            //     avgSize: item.properties.messageSize,
-            //     messageCount: 1
-            //   }
-            //   devices.set(item.properties.deviceId, value);
+            let correlationPrefix = item.correlationId.substring(8, 16);
+            item.durationMs = parseFloat(item.durationMs);
+            item.time = new Date(item.time);
+            try {
+              item.properties = JSON.parse(item.properties);
+            } catch (e) {
+              continue;
             }
+            item.properties.messageSize = parseFloat(item.properties.messageSize);
+            records.set(item.correlationId, item);
+            if (item.operationName === 'DiagnosticIoTHubRouting') {
+              if (endpoints.has(item.properties.endpointName)) {
+                let value = endpoints.get(item.properties.endpointName);
+                if (item.durationMs > value.max) {
+                  value.max = item.durationMs;
+                  value.maxId = item.correlationId;
+                }
+                value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
+                value.messageCount++;
+                endpoints.set(item.properties.endpointName, value);
+              } else {
+                let value = {
+                  name: item.properties.endpointName,
+                  type: item.properties.endpointType,
+                  avg: item.durationMs,
+                  max: item.durationMs,
+                  maxId: item.correlationId,
+                  messageCount: 1
+                }
+                endpoints.set(item.properties.endpointName, value);
+              }
+              unmatched.set(correlationPrefix, false);
+            } else if (item.operationName === 'DiagnosticIoTHubIngress') {
+              if (devices.has(item.properties.deviceId)) {
+                let value = devices.get(item.properties.deviceId);
+                if (item.durationMs > value.max) {
+                  value.max = item.durationMs;
+                  value.maxId = item.correlationId;
+                }
+                value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
+                value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
+                value.messageCount++;
+                devices.set(item.properties.deviceId, value);
+                // } else {
+                //   let value = {
+                //     name: item.properties.deviceId,
+                //     avg: item.durationMs,
+                //     max: item.durationMs,
+                //     maxId: item.correlationId,
+                //     avgSize: item.properties.messageSize,
+                //     messageCount: 1
+                //   }
+                //   devices.set(item.properties.deviceId, value);
+              }
 
-            if (!unmatched.has(correlationPrefix)) {
-              unmatched.set(correlationPrefix, true);
+              if (!unmatched.has(correlationPrefix)) {
+                unmatched.set(correlationPrefix, true);
+              }
             }
           }
+        } else {
+          console.warn("Unprocessed record: ", item);
         }
       }
 
@@ -276,27 +280,27 @@ class Dashboard extends Component {
       start.setMinutes(start.getMinutes() - this.state.spanInMinutes);
 
       //sort connection records and calculate online time
-      for(let [k, v] of this.connRecords){
+      for (let [k, v] of this.connRecords) {
         let newRecs = v.filter(item => item.time >= start && item.time <= end);
         newRecs.sort((item1, item2) => item1.time - item2.time);
         this.connRecords.set(k, newRecs);
       }
-      for(let [key, device] of devices){
+      for (let [key, device] of devices) {
         let deviceConnRecords = this.connRecords.get(device.name);
-        if(!deviceConnRecords){
+        if (!deviceConnRecords) {
           device.onlineRatio = device.connected ? 100 : 0;
-        }else{
+        } else {
           let prevTime = start;
           let isConnected = false;
           let onlineTimeInMs = 0;
-          for(let rec of deviceConnRecords){
-            if(!rec.isConn){
+          for (let rec of deviceConnRecords) {
+            if (!rec.isConn) {
               onlineTimeInMs += rec.time - prevTime;
             }
             prevTime = rec.time;
             isConnected = rec.isConn;
           }
-          if(isConnected){
+          if (isConnected) {
             onlineTimeInMs += end - prevTime;
           }
           device.onlineRatio = Math.round(onlineTimeInMs / (this.state.spanInMinutes * 60000) * 100 * 100) / 100;
@@ -707,21 +711,23 @@ class Dashboard extends Component {
   }
 
   showTooltip = (event, tipText) => {
+    console.log("show tooltip")
     this.setState({
       tooltipX: event.evt.clientX,
-      tooltipY: event.evt.clientY-25,
+      tooltipY: event.evt.clientY - 25,
       tooltipText: tipText,
       showTooltip: true
     });
   }
 
   hideTooltip = () => {
+    console.log("hide tool tip")
     this.setState({
       showTooltip: false,
       tooltipText: ''
     })
   }
- 
+
   render() {
     let ff = "Segoe UI";
     let leftPadding = 100;
@@ -818,17 +824,17 @@ class Dashboard extends Component {
                 cornerRadius={5}
               />
                 <KonvaImage
-                  x={b1x + 8*s}
-                  y={style.style.y + 8*s}
+                  x={b1x + 8 * s}
+                  y={style.style.y + 8 * s}
                   image={this.state.expand ? (style.data.diagnosticDesired !== 0 ? this.diagnosticOnImage : this.diagnosticOffImage) : null}
-                  width={10*s}
-                  height={10*s}
+                  width={10 * s}
+                  height={10 * s}
                 />
                 <Text
-                  x={b1x + 20*s}
-                  y={style.style.y + 8*s}
-                  fontSize={9*s}
-                  height={9*s}
+                  x={b1x + 20 * s}
+                  y={style.style.y + 8 * s}
+                  fontSize={9 * s}
+                  height={9 * s}
                   fill="rgba(0,0,0,0.9)"
                   text={this.state.expand ? style.data.diagnosticDesired + '' : ''}
                   opacity={style.style.opacity}
@@ -836,17 +842,17 @@ class Dashboard extends Component {
                   onMouseLeave={this.hideTooltip}
                 />
                 <KonvaImage
-                  x={b1x + 20*s + 20*s}
-                  y={style.style.y + 8*s}
+                  x={b1x + 20 * s + 20 * s}
+                  y={style.style.y + 8 * s}
                   image={(this.state.expand && !isNaN(style.data.onlineRatio)) ? this.onlineRatioImage : null}
-                  width={10*s}
-                  height={10*s}
+                  width={10 * s}
+                  height={10 * s}
                 />
                 <Text
-                  x={b1x + 20*s + 32*s}
-                  y={style.style.y + 8*s}
-                  fontSize={9*s}
-                  height={9*s}
+                  x={b1x + 20 * s + 32 * s}
+                  y={style.style.y + 8 * s}
+                  fontSize={9 * s}
+                  height={9 * s}
                   fill="rgba(0,0,0,0.9)"
                   text={(this.state.expand && !isNaN(style.data.onlineRatio)) ? style.data.onlineRatio + '%' : ''}
                   opacity={style.style.opacity}
@@ -855,26 +861,26 @@ class Dashboard extends Component {
                 />
                 <Text
                   x={b1x}
-                  y={style.style.y +style.style.height +  8*s*2}
-                  fontSize={12*s}
-                  height={12*s}
+                  y={style.style.y + style.style.height + 8 * s * 2}
+                  fontSize={12 * s}
+                  height={12 * s}
                   fill="rgba(0,0,0,0.7)"
                   text={this.state.expand ? '' : this.state.diagnosticOnDevices + ' device(s) with diagnostic enabled'}
                   opacity={style.style.opacity}
                 />
                 <Path
-                  x={b1x + 20*s}
-                  y={style.style.y + (style.style.height - 26*1.8*s) / 2}
+                  x={b1x + 20 * s}
+                  y={style.style.y + (style.style.height - 26 * 1.8 * s) / 2}
                   fill={this.state.expand ? (style.data.connected ? "#0072c6" : "#aaaaaa") : (this.state.connectedDevices !== 0 ? "#0072c6" : "#aaaaaa")}
                   data={SvgChip}
                   opacity={style.style.opacity}
                   scale={{
-                    x: 1.8*s,
-                    y: 1.8*s
+                    x: 1.8 * s,
+                    y: 1.8 * s
                   }}
                 />
                 <Text
-                  x={b1x + 20*s + 26*1.8*s + 20*s}
+                  x={b1x + 20 * s + 26 * 1.8 * s + 20 * s}
                   y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2}
                   fontSize={tfs}
                   height={tfs}
@@ -885,7 +891,7 @@ class Dashboard extends Component {
                 />
 
                 <Text
-                  x={b1x + 20*s + 26*1.8*s + 20*s}
+                  x={b1x + 20 * s + 26 * 1.8 * s + 20 * s}
                   y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2 + tfs + 5}
                   fontSize={t2fs}
                   height={t2fs}
@@ -895,7 +901,7 @@ class Dashboard extends Component {
                 />
 
                 <Text
-                  x={b1x + 20*s + 26*1.8*s + 20*s}
+                  x={b1x + 20 * s + 26 * 1.8 * s + 20 * s}
                   y={style.style.y + (style.style.height - (tfs + t2fs * 2 + 10)) / 2 + tfs + 5 + t2fs + 5}
                   fontSize={t2fs}
                   height={t2fs}
@@ -908,44 +914,44 @@ class Dashboard extends Component {
               {
                 this.state.diagnosticOnDevices !== 0 &&
                 <Group>
-                <Rect
-                  x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs *s}
-                  y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7 *s) / 2}
-                  height={tfs*s}
-                  width={tfs*s}
-                  onClick={this.toggleExpand}
-                  onMouseEnter={() => {
-                    if (this.compressRef) this.compressRef.to({ fill: 'gray', duration: 0.3 });
-                    this.changeCursorToPointer();
-                  }}
-                  onMouseLeave={() => {
-                    if (this.compressRef) this.compressRef.to({ fill: 'rgba(0,0,0,0.9)', duration: 0.3 });
-                    this.changeCursorToDefault();
-                  }}
-                />
-                <Path
-                  x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs*s}
-                  y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7*s) / 2}
-                  height={tfs}
-                  fill="rgba(0,0,0,0.9)"
-                  opacity={styles.length === 0 ? 0 : styles[0].style.opacity}
-                  data={this.state.expand ? SvgCompress : SvgExpand}
-                  ref={input => { this.compressRef = input; }}
-                  onClick={this.toggleExpand}
-                  onMouseEnter={() => {
-                    if (this.compressRef) this.compressRef.to({ fill: 'gray', duration: 0.3 });
-                    this.changeCursorToPointer();
-                  }}
-                  onMouseLeave={() => {
-                    if (this.compressRef) this.compressRef.to({ fill: 'rgba(0,0,0,0.9)', duration: 0.3 });
-                    this.changeCursorToDefault();
-                  }}
-                  scale={{
-                    x: 0.7*s,
-                    y: 0.7*s,
-                  }}
-                />
-              </Group>
+                  <Rect
+                    x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs * s}
+                    y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7 * s) / 2}
+                    height={tfs * s}
+                    width={tfs * s}
+                    onClick={this.toggleExpand}
+                    onMouseEnter={() => {
+                      if (this.compressRef) this.compressRef.to({ fill: 'gray', duration: 0.3 });
+                      this.changeCursorToPointer();
+                    }}
+                    onMouseLeave={() => {
+                      if (this.compressRef) this.compressRef.to({ fill: 'rgba(0,0,0,0.9)', duration: 0.3 });
+                      this.changeCursorToDefault();
+                    }}
+                  />
+                  <Path
+                    x={this.state.expand ? b1x + bw - 20 : b1x + bw - tfs * s}
+                    y={this.state.expand ? b1y - styles.length / 2 * bh - bh / 2 - tfs : b1y - (tfs * 0.7 * s) / 2}
+                    height={tfs}
+                    fill="rgba(0,0,0,0.9)"
+                    opacity={styles.length === 0 ? 0 : styles[0].style.opacity}
+                    data={this.state.expand ? SvgCompress : SvgExpand}
+                    ref={input => { this.compressRef = input; }}
+                    onClick={this.toggleExpand}
+                    onMouseEnter={() => {
+                      if (this.compressRef) this.compressRef.to({ fill: 'gray', duration: 0.3 });
+                      this.changeCursorToPointer();
+                    }}
+                    onMouseLeave={() => {
+                      if (this.compressRef) this.compressRef.to({ fill: 'rgba(0,0,0,0.9)', duration: 0.3 });
+                      this.changeCursorToDefault();
+                    }}
+                    scale={{
+                      x: 0.7 * s,
+                      y: 0.7 * s,
+                    }}
+                  />
+                </Group>
               }
             </Group>
           }
@@ -979,7 +985,7 @@ class Dashboard extends Component {
               {styles.map(style =>
                 <Group key={style.data.name}>
                   <Text
-                    x={leftLinex1 + 10*s}
+                    x={leftLinex1 + 10 * s}
                     y={style.style.y + (style.style.height - tfs) / 2}
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
@@ -993,7 +999,7 @@ class Dashboard extends Component {
                     ))}
                   />
                   <Text
-                    x={leftLinex1 + 10*s + 75*s}
+                    x={leftLinex1 + 10 * s + 75 * s}
                     y={style.style.y + (style.style.height - tfs) / 2}
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
@@ -1007,7 +1013,7 @@ class Dashboard extends Component {
                     ))}
                   />
                   <Text
-                    x={leftLinex1 + 10*s + 150*s}
+                    x={leftLinex1 + 10 * s + 150 * s}
                     y={style.style.y + (style.style.height - tfs) / 2}
                     opacity={style.style.opacity}
                     fontSize={t2fs * 0.75}
@@ -1055,43 +1061,43 @@ class Dashboard extends Component {
               onClick={this.toggleExpand}
             />
             <KonvaImage
-              x={b2x + 20*s}
-              y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3*s) / 2}
+              x={b2x + 20 * s}
+              y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3 * s) / 2}
               image={this.iotHubImage}
-              width={lw * 1.3*s}
-              height={lw * 1.3*s}
+              width={lw * 1.3 * s}
+              height={lw * 1.3 * s}
             />
             <Text
-              x={b2x + 20*s + lw * 1.3*s + 20*s}
-              y={b1y - b2h * 1.7 / 2 + (b2h - 16*s) / 2}
-              fontSize={20*s}
-              height={20*s}
+              x={b2x + 20 * s + lw * 1.3 * s + 20 * s}
+              y={b1y - b2h * 1.7 / 2 + (b2h - 16 * s) / 2}
+              fontSize={20 * s}
+              height={20 * s}
               text={this.state.iotHubName.length <= 14 ? this.state.iotHubName : this.state.iotHubName.substring(0, 13) + '...'}
             />
             <Text
-              x={b2x + 20*s}
+              x={b2x + 20 * s}
               y={b1y - b2h * 1.7 / 2 + b2h}
-              fontSize={t2fs*1.1*s}
-              height={t2fs*1.1*s}
+              fontSize={t2fs * 1.1 * s}
+              height={t2fs * 1.1 * s}
               fill={"rgba(0, 0, 0, 0.65)"}
               text={"Device connected: " + this.state.connectedDevices || 0}
             />
 
             <Text
-              x={b2x + 20*s}
-              y={b1y - b2h * 1.7 / 2 + b2h + t2fs*1.1*s + 5*s}
-              fontSize={t2fs*1.1*s}
-              height={t2fs*1.1*s}
+              x={b2x + 20 * s}
+              y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 1.1 * s + 5 * s}
+              fontSize={t2fs * 1.1 * s}
+              height={t2fs * 1.1 * s}
               fill={"rgba(0, 0, 0, 0.65)"}
               text={"Device registered: " + this.state.registeredDevices || 0}
             />
 
 
             <Text
-              x={b2x + 20*s}
-              y={b1y - b2h * 1.7 / 2 + b2h + t2fs*1.1 * 2*s + 10*s}
-              fontSize={t2fs*1.1*s}
-              height={t2fs*1.1*s}
+              x={b2x + 20 * s}
+              y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 1.1 * 2 * s + 10 * s}
+              fontSize={t2fs * 1.1 * s}
+              height={t2fs * 1.1 * s}
               fill={"rgba(0, 0, 0, 0.65)"}
               text={"Unmatched messages: " + this.state.unmatchedNumber}
             />
@@ -1123,30 +1129,30 @@ class Dashboard extends Component {
                   />
 
                     <Path
-                      x={b3x + 3*s}
-                      y={style.style.y + 3*s}
+                      x={b3x + 3 * s}
+                      y={style.style.y + 3 * s}
                       fill="#0072c6"
                       data={SvgEndpoint}
                       scale={{
-                        x: 50 / 24 * 0.8*s,
-                        y: 50 / 26 * 0.8*s,
+                        x: 50 / 24 * 0.8 * s,
+                        y: 50 / 26 * 0.8 * s,
                       }}
                     />
 
                     <KonvaImage
-                      x={b3x + 20*s}
-                      y={style.style.y + (style.style.height - lw*s + 5*s) / 2}
+                      x={b3x + 20 * s}
+                      y={style.style.y + (style.style.height - lw * s + 5 * s) / 2}
                       image={endpointImages[style.data.type]}
-                      width={lw * 1*s}
-                      height={lw * 1*s}
+                      width={lw * 1 * s}
+                      height={lw * 1 * s}
                     />
 
                     <Text
-                      x={b3x + 20*s + 35*s + 20*s}
-                      y={style.style.y + (style.style.height - tfs*s) / 2}
-                      fontSize={tfs*s}
-                      height={tfs*s}
-                      text={style.data.name.length <= 7 ? style.data.name : style.data.name.substring(0,7)+'...'}
+                      x={b3x + 20 * s + 35 * s + 20 * s}
+                      y={style.style.y + (style.style.height - tfs * s) / 2}
+                      fontSize={tfs * s}
+                      height={tfs * s}
+                      text={style.data.name.length <= 7 ? style.data.name : style.data.name.substring(0, 7) + '...'}
                     />
                   </Group>)}
                 </Group>
@@ -1181,7 +1187,7 @@ class Dashboard extends Component {
                   {styles.map(style =>
                     <Group key={style.data.name}>
                       <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10*s}
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s}
                         y={style.style.y + (style.style.height - tfs) / 2}
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
@@ -1194,7 +1200,7 @@ class Dashboard extends Component {
                         ))}
                       />
                       <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10*s + 75*s}
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 75 * s}
                         y={style.style.y + (style.style.height - tfs) / 2}
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
@@ -1207,7 +1213,7 @@ class Dashboard extends Component {
                         ))}
                       />
                       <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10*s + 150*s}
+                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 150 * s}
                         y={style.style.y + (style.style.height - tfs) / 2}
                         fontSize={t2fs * 0.75}
                         height={t2fs * 0.75}
