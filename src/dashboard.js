@@ -19,8 +19,8 @@ import PngCloseStorageTable from '../asset/close-table.png';
 import { setInterval } from 'timers';
 
 // Import React Table
-import ReactTable from "react-table";
-import "react-table/react-table.css";
+import ReactTable from 'react-table';
+import 'react-table/react-table.css';
 
 class Dashboard extends Component {
   constructor(props) {
@@ -65,6 +65,9 @@ class Dashboard extends Component {
 
   getDeviceNumber = () => {
     fetch(this.getApiDomain() + '/api/device?init=' + encodeURIComponent(this.initDate.toISOString())).then(results => results.json()).then(data => {
+      if(this.getDeviceNumberInterval == null) {
+        return;
+      }
       let devices = data.devices;
       let currentDeviceMap = this.state.expand ? this.state.devices : this.state.toggleDevices;
       let toggleDeviceMap = this.state.expand ? this.state.toggleDevices : this.state.devices;
@@ -72,7 +75,7 @@ class Dashboard extends Component {
         name: 'All Devices',
         avg: 0,
         max: -1,
-        maxId: "",
+        maxId: '',
         avgSize: 0,
         messageCount: 0,
       };
@@ -105,7 +108,7 @@ class Dashboard extends Component {
               diagnosticReported: device.diagnosticReported,
               avg: 0,
               max: -1,
-              maxId: "",
+              maxId: '',
               avgSize: 0,
               messageCount: 0,
             };
@@ -135,6 +138,9 @@ class Dashboard extends Component {
   }
 
   refresh = (firstCall, retry, callback) => {
+    if(!firstCall && this.refreshInterval == null) {
+      return;
+    }
     if (firstCall && !retry) {
       this.reset();
       this.showLoading();
@@ -155,7 +161,7 @@ class Dashboard extends Component {
         name: 'All Devices',
         avg: 0,
         max: -1,
-        maxId: "",
+        maxId: '',
         avgSize: 0,
         messageCount: 0,
       };
@@ -164,7 +170,7 @@ class Dashboard extends Component {
 
       let toggleDeviceCount = 0;
       let toggleDeviceMax = -1;
-      let toggleDeviceMaxId = "";
+      let toggleDeviceMaxId = '';
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
       let p1 = performance.now();
@@ -271,7 +277,7 @@ class Dashboard extends Component {
               endpoints.set(v.properties.endpointName, value);
             } else {
               if (value.maxId === v.correlationId) {
-                value.maxId = "";
+                value.maxId = '';
                 value.max = 0;
                 updateMaxEndpointsMap.set(value.name, true);
               }
@@ -291,7 +297,7 @@ class Dashboard extends Component {
               devices.set(v.properties.deviceId, value);
             } else {
               if (value.maxId === v.correlationId) {
-                value.maxId = "";
+                value.maxId = '';
                 value.max = 0;
                 updateMaxDevicesMap.set(value.name, true);
               }
@@ -502,11 +508,11 @@ class Dashboard extends Component {
 
   getReadableSize = (num) => {
     if (num < 1024) {
-      return num.toFixed(0) + " Bytes";
+      return num.toFixed(0) + ' Bytes';
     } else if (num < 1024 * 1024) {
-      return (num / 1024).toFixed(0) + " KB";
+      return (num / 1024).toFixed(0) + ' KB';
     } else {
-      return (num / 1024 / 1024).toFixed(0) + " MB";
+      return (num / 1024 / 1024).toFixed(0) + ' MB';
     }
   }
 
@@ -578,7 +584,7 @@ class Dashboard extends Component {
   }
 
   encodeKustoQuery = (query) => {
-    let s1 = query + "\n";
+    let s1 = query + '\n';
     let s2 = gzip.zip(s1);
     let s3 = String.fromCharCode(...s2);
     let s4 = btoa(s3);
@@ -612,15 +618,15 @@ class Dashboard extends Component {
   showAllStorageTable = (type, id) =>{
     var table = [];
     this.records.forEach((value,key)=>{
-      if(type === 0 && value.operationName === "DiagnosticIoTHubIngress")
+      if(type === 0 && value.operationName === 'DiagnosticIoTHubIngress')
       {
         table.push(value);
       }
-      else if (type === 1 && value.operationName === "DiagnosticIoTHubIngress" && value.properties.deviceId === id)
+      else if (type === 1 && value.operationName === 'DiagnosticIoTHubIngress' && value.properties.deviceId === id)
       {
         table.push(value);
       }
-      else if (type === 2 && value.operationName === "DiagnosticIoTHubRouting")
+      else if (type === 2 && value.operationName === 'DiagnosticIoTHubRouting')
       {
         table.push(value);
       }
@@ -686,18 +692,34 @@ class Dashboard extends Component {
 
   showTable = () => {
     this.setState({
-      showStorageTable : true
+      showStorageTable: true
+    }, () => {
+      if(this.refreshInterval)
+      {
+        window.clearInterval(this.refreshInterval);
+        this.refreshInterval = null;
+      }
+      if(this.getDeviceNumberInterval)
+      {
+        window.clearTimeout(this.getDeviceNumberInterval);
+        this.getDeviceNumberInterval = null;
+      }
     });
   }
 
   hideTable =()=> {
     this.setState({
-      showStorageTable : false
+      showStorageTable: false
+    }, () => {
+      this.refreshInterval = window.setInterval(() => {
+        this.refresh(false, false);
+      }, this.queryMetricSpanInSeconds * 1000)
+      this.getDeviceNumberInterval = window.setInterval(this.getDeviceNumber, this.queryDeviceSpanInSeconds * 1000);
     });
   }
 
   render() {
-    let ff = "Segoe UI";
+    let ff = 'Segoe UI';
     let leftPadding = 100;
     let rightPadding = 400;
     let timePicker = 200;
@@ -754,7 +776,7 @@ class Dashboard extends Component {
       if (this.state.showStorageTable) {
         return <div className="overlay">
           <img src={PngCloseStorageTable} width="30px" height="30px" className="png-close-storage-table-btn" onClick={this.hideTable}></img>
-          <ReactTable className="storage-table"
+          <ReactTable className="-striped -highlight storage-table"
             data={this.state.storageTable}
             columns={[
               {
