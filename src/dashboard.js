@@ -43,7 +43,9 @@ class Dashboard extends Component {
       sourceAI: false,
       storageTable: [],
       showStorageTable: false,
-      showTooltip: false
+      showTooltip: false,
+      showCorrelationId: true,
+      showDuration: true,
     };
     this.records = new Map();
     this.unmatchedMap = new Map();
@@ -201,6 +203,8 @@ class Dashboard extends Component {
       for (let item of data.value) {
         if (item.operationName === 'deviceConnect' || item.operationName === 'deviceDisconnect') {
           this.processDeviceConnStatus(item);
+          item.properties = JSON.parse(item.properties);
+          records.set(item.time + item.properties.deviceId + item.operationName, item);
         } else if (item.operationName === 'DiagnosticIoTHubRouting' || item.operationName === 'DiagnosticIoTHubIngress') {
           if (!records.has(item.correlationId)) {
             if (!this.state.iotHubName && item.resourceId) {
@@ -710,6 +714,19 @@ class Dashboard extends Component {
     this.showTable();
   }
 
+  showStorageForConnections = (id) => {
+    var table = [];
+    this.records.forEach((value, key) => {
+      if ((value.operationName === 'deviceConnect' || value.operationName === 'deviceDisconnect') && value.properties.deviceId === id) {
+        table.push(value);
+      }
+    })
+    this.setState({
+      storageTable: table
+    });
+    this.showTable(true);
+  }
+
   getApiDomain = () => {
     if (config.apiDomain) {
       return config.apiDomain;
@@ -758,9 +775,11 @@ class Dashboard extends Component {
     });
   }
 
-  showTable = () => {
+  showTable = (isConnectionLogs = false) => {
     this.setState({
-      showStorageTable: true
+      showStorageTable: true,
+      showCorrelationId: !isConnectionLogs,
+      showDuration: !isConnectionLogs
     });
   }
 
@@ -853,7 +872,8 @@ class Dashboard extends Component {
                 minWidth: 200,
                 getProps: (state, rowInfo, column, instance) => ({
                   title: rowInfo ? rowInfo.row.correlationId : ""
-                })
+                }),
+                show: this.state.showCorrelationId
               },
               {
                 Header: "category",
@@ -868,7 +888,8 @@ class Dashboard extends Component {
                 accessor: "durationMs",
                 getProps: (state, rowInfo, column, instance) => ({
                   title: rowInfo ? rowInfo.row.durationMs : ""
-                })
+                }),
+                show: this.state.showDuration
               },
               {
                 Header: "level",
@@ -1014,7 +1035,7 @@ class Dashboard extends Component {
                   }}
                   onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                     this.getKustoStatementForConnection(...this.getCurrentTimeWindow(), style.data.name)
-                  )) : this.showStorageForSingleRecord.bind(null, style.data.maxId)}
+                  )) : this.showStorageForConnections.bind(null, style.data.name)}
                 />
                 <Text
                   x={b1x}
