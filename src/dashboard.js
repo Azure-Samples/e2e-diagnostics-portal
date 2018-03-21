@@ -640,12 +640,25 @@ class Dashboard extends Component {
     this.records = new Map();
     this.connRecords = new Map();
     this.unmatchedMap = new Map();
+    let devices = new Map();
+    let toggleDevices = this.state.expand ? this.state.devices : this.state.toggleDevices;
+    for(let [k,v] of toggleDevices) {
+      v.onlineRatio = NaN;
+      v.avg = 0;
+      v.max = -1;
+      v.maxId = '';
+      v.avgSize = 0;
+      v.messageCount = 0;
+    }
+    
     this.setState({
       expand: false,
       endpoints: new Map(),
       unmatchedNumber: 0,
       leftLineInAnimationProgress: 0,
       rightLineInAnimationProgress: 0,
+      devices,
+      toggleDevices,
     })
   }
 
