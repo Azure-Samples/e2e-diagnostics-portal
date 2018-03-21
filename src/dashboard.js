@@ -42,7 +42,7 @@ class Dashboard extends Component {
       iotHubName: '',
       sourceAI: false,
       storageTable: [],
-      showStorageTable : false,
+      showStorageTable: false,
       showTooltip: false
     };
     this.records = new Map();
@@ -450,7 +450,7 @@ class Dashboard extends Component {
   }
 
   shouldComponentUpdate(nextProps, nextState) {
-    if(this.state.showStorageTable && nextState.showStorageTable) {
+    if (this.state.showStorageTable && nextState.showStorageTable) {
       return false;
     }
     return true;
@@ -665,11 +665,16 @@ class Dashboard extends Component {
       condition = `'"endpointName":"${id}"'`;
     }
 
-    return `customEvents | where timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('${start.toISOString()}') and todatetime(tostring(customDimensions['time'])) <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition}`;
+    return `customEvents | where timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('${start.toISOString()}') and todatetime(tostring(customDimensions['time'])) <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition} and tostring(customDimensions['operationName']) contains 'Diagnostic'`;
   }
 
   getKustoStatementForSingleRecord = (start, end, correlationId) => {
     return `customEvents | where timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('${start.toISOString()}') and todatetime(tostring(customDimensions['time'])) <= datetime('${end.toISOString()}') and customDimensions.correlationId contains '${correlationId}'`;
+  }
+
+  getKustoStatementForConnection = (start, end, deviceId) => {
+    let condition = `'"deviceId":"${deviceId}"'`;
+    return `customEvents | where timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('${start.toISOString()}') and todatetime(tostring(customDimensions['time'])) <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition} and tostring(customDimensions['operationName']) contains 'connect'`;
   }
 
   openLinkInNewPage = (link) => {
@@ -677,19 +682,16 @@ class Dashboard extends Component {
   }
 
   // type 0 all devices, 1 one device, 2 endpoint
-  showAllStorageTable = (type, id) =>{
+  showAllStorageTable = (type, id) => {
     var table = [];
-    this.records.forEach((value,key)=>{
-      if(type === 0 && value.operationName === 'DiagnosticIoTHubIngress')
-      {
+    this.records.forEach((value, key) => {
+      if (type === 0 && value.operationName === 'DiagnosticIoTHubIngress') {
         table.push(value);
       }
-      else if (type === 1 && value.operationName === 'DiagnosticIoTHubIngress' && value.properties.deviceId === id)
-      {
+      else if (type === 1 && value.operationName === 'DiagnosticIoTHubIngress' && value.properties.deviceId === id) {
         table.push(value);
       }
-      else if (type === 2 && value.operationName === 'DiagnosticIoTHubRouting')
-      {
+      else if (type === 2 && value.operationName === 'DiagnosticIoTHubRouting') {
         table.push(value);
       }
     })
@@ -699,9 +701,8 @@ class Dashboard extends Component {
     this.showTable();
   }
 
-  showStorageForSingleRecord=(correlationId)=>{
-    if (correlationId && correlationId.length > 0)
-    {
+  showStorageForSingleRecord = (correlationId) => {
+    if (correlationId && correlationId.length > 0) {
       this.setState({
         storageTable: [this.records.get(correlationId)]
       });
@@ -763,7 +764,7 @@ class Dashboard extends Component {
     });
   }
 
-  hideTable =()=> {
+  hideTable = () => {
     this.setState({
       showStorageTable: false
     });
@@ -1002,8 +1003,18 @@ class Dashboard extends Component {
                   fill="rgba(0,0,0,0.9)"
                   text={(this.state.expand && !isNaN(style.data.onlineRatio)) ? style.data.onlineRatio + '%' : ''}
                   opacity={style.style.opacity}
-                  onMouseEnter={(event) => this.showTooltip(event, "Device online rate")}
-                  onMouseLeave={this.hideTooltip}
+                  onMouseEnter={(event) => {
+                      this.showTooltip(event, "Device online rate");
+                      this.changeCursorToPointer();
+                    }
+                  }
+                  onMouseLeave={()=>{
+                    this.hideTooltip();
+                    this.changeCursorToDefault();
+                  }}
+                  onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                    this.getKustoStatementForConnection(...this.getCurrentTimeWindow(), style.data.name)
+                  )) : this.showStorageForSingleRecord.bind(null, style.data.maxId)}
                 />
                 <Text
                   x={b1x}
@@ -1142,7 +1153,7 @@ class Dashboard extends Component {
                     onMouseLeave={this.changeCursorToDefault}
                     onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                       this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), styles[0].data.name === 'All Devices' ? 0 : 1, style.data.name)
-                    )):this.showAllStorageTable.bind(null, styles[0].data.name === 'All Devices' ? 0 : 1, style.data.name)}
+                    )) : this.showAllStorageTable.bind(null, styles[0].data.name === 'All Devices' ? 0 : 1, style.data.name)}
                   />
                   <Text
                     x={leftLinex1 + 10 * s + 75 * s}
@@ -1156,7 +1167,7 @@ class Dashboard extends Component {
                     onMouseLeave={this.changeCursorToDefault}
                     onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                       this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
-                    )):this.showStorageForSingleRecord.bind(null, style.data.maxId)}
+                    )) : this.showStorageForSingleRecord.bind(null, style.data.maxId)}
                   />
                   <Text
                     x={leftLinex1 + 10 * s + 150 * s}
@@ -1192,261 +1203,261 @@ class Dashboard extends Component {
 
     return (
       <div>
-       {getStorageTableView()}
-      <Stage ref={input => { this.stageRef = input; }} width={window.innerWidth} height={window.innerHeight} >
-        <Layer>
-          {devices}
-          <Group>
-            <Rect
-              x={b2x}
-              y={b1y - b2h * 1.7 / 2}
-              width={bw}
-              height={b2h * 1.7}
-              fill={"#fff"}
-              shadowBlur={5}
-              cornerRadius={5}
-              onClick={this.toggleExpand}
-            />
-            <KonvaImage
-              x={b2x + 20 * s}
-              y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3 * s) / 2}
-              image={this.iotHubImage}
-              width={lw * 1.3 * s}
-              height={lw * 1.3 * s}
-            />
-            <Text
-              x={b2x + 20 * s + lw * 1.3 * s + 20 * s}
-              y={b1y - b2h * 1.7 / 2 + (b2h - 16 * s) / 2}
-              fontSize={20 * s}
-              height={20 * s}
-              text={this.state.iotHubName.length <= 14 ? this.state.iotHubName : this.state.iotHubName.substring(0, 13) + '...'}
-            />
-            <Text
-              x={b2x + 20 * s}
-              y={b1y - b2h * 1.7 / 2 + b2h}
-              fontSize={t2fs * 1.1 * s}
-              height={t2fs * 1.1 * s}
-              fill={"rgba(0, 0, 0, 0.65)"}
-              text={"Device connected: " + this.state.connectedDevices || 0}
-            />
+        {getStorageTableView()}
+        <Stage ref={input => { this.stageRef = input; }} width={window.innerWidth} height={window.innerHeight} >
+          <Layer>
+            {devices}
+            <Group>
+              <Rect
+                x={b2x}
+                y={b1y - b2h * 1.7 / 2}
+                width={bw}
+                height={b2h * 1.7}
+                fill={"#fff"}
+                shadowBlur={5}
+                cornerRadius={5}
+                onClick={this.toggleExpand}
+              />
+              <KonvaImage
+                x={b2x + 20 * s}
+                y={b1y - b2h * 1.7 / 2 + (b2h - lw * 1.3 * s) / 2}
+                image={this.iotHubImage}
+                width={lw * 1.3 * s}
+                height={lw * 1.3 * s}
+              />
+              <Text
+                x={b2x + 20 * s + lw * 1.3 * s + 20 * s}
+                y={b1y - b2h * 1.7 / 2 + (b2h - 16 * s) / 2}
+                fontSize={20 * s}
+                height={20 * s}
+                text={this.state.iotHubName.length <= 14 ? this.state.iotHubName : this.state.iotHubName.substring(0, 13) + '...'}
+              />
+              <Text
+                x={b2x + 20 * s}
+                y={b1y - b2h * 1.7 / 2 + b2h}
+                fontSize={t2fs * 1.1 * s}
+                height={t2fs * 1.1 * s}
+                fill={"rgba(0, 0, 0, 0.65)"}
+                text={"Device connected: " + this.state.connectedDevices || 0}
+              />
 
-            <Text
-              x={b2x + 20 * s}
-              y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 1.1 * s + 5 * s}
-              fontSize={t2fs * 1.1 * s}
-              height={t2fs * 1.1 * s}
-              fill={"rgba(0, 0, 0, 0.65)"}
-              text={"Device registered: " + this.state.registeredDevices || 0}
-            />
+              <Text
+                x={b2x + 20 * s}
+                y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 1.1 * s + 5 * s}
+                fontSize={t2fs * 1.1 * s}
+                height={t2fs * 1.1 * s}
+                fill={"rgba(0, 0, 0, 0.65)"}
+                text={"Device registered: " + this.state.registeredDevices || 0}
+              />
 
-            <Text
-              x={b2x + 20 * s}
-              y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 1.1 * 2 * s + 10 * s}
-              fontSize={t2fs * 1.1 * s}
-              height={t2fs * 1.1 * s}
-              fill={"rgba(0, 0, 0, 0.65)"}
-              text={"Unmatched messages: " + this.state.unmatchedNumber}
-            />
-          </Group>
+              <Text
+                x={b2x + 20 * s}
+                y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 1.1 * 2 * s + 10 * s}
+                fontSize={t2fs * 1.1 * s}
+                height={t2fs * 1.1 * s}
+                fill={"rgba(0, 0, 0, 0.65)"}
+                text={"Unmatched messages: " + this.state.unmatchedNumber}
+              />
+            </Group>
 
-          <TransitionMotion
-            // defaultStyles={this.getDefaultStyles(b1y)}
-            styles={this.getStyles(bh, b1y, this.state.endpoints, this.state.rightLineInAnimationProgress, 1)}
-            // willLeave={this.willLeave.bind(null, b1y)}
-            willEnter={this.willEnterNumber.bind(null, b1y)}>
+            <TransitionMotion
+              // defaultStyles={this.getDefaultStyles(b1y)}
+              styles={this.getStyles(bh, b1y, this.state.endpoints, this.state.rightLineInAnimationProgress, 1)}
+              // willLeave={this.willLeave.bind(null, b1y)}
+              willEnter={this.willEnterNumber.bind(null, b1y)}>
 
-            {
-              (styles) => {
-                let endpointImages = {
-                  "EventHub": this.eventHubImage,
-                  "AzureStorageContainer": this.storageImage,
-                  "ServiceBusQueue": this.serviceBusImage,
-                  "ServiceBusTopic": this.serviceBusImage,
-                };
-                return <Group>
-                  {styles.map(style => <Group key={style.data.name}><Rect
-                    x={b3x}
-                    y={style.style.y}
-                    width={bw_small}
-                    height={style.style.height}
-                    fill={"#fff"}
-                    shadowBlur={5}
-                    cornerRadius={5}
-                  />
-
-                    <Path
-                      x={b3x + 3 * s}
-                      y={style.style.y + 3 * s}
-                      fill="#0072c6"
-                      data={SvgEndpoint}
-                      scale={{
-                        x: 50 / 24 * 0.8 * s,
-                        y: 50 / 26 * 0.8 * s,
-                      }}
+              {
+                (styles) => {
+                  let endpointImages = {
+                    "EventHub": this.eventHubImage,
+                    "AzureStorageContainer": this.storageImage,
+                    "ServiceBusQueue": this.serviceBusImage,
+                    "ServiceBusTopic": this.serviceBusImage,
+                  };
+                  return <Group>
+                    {styles.map(style => <Group key={style.data.name}><Rect
+                      x={b3x}
+                      y={style.style.y}
+                      width={bw_small}
+                      height={style.style.height}
+                      fill={"#fff"}
+                      shadowBlur={5}
+                      cornerRadius={5}
                     />
 
-                    <KonvaImage
-                      x={b3x + 20 * s}
-                      y={style.style.y + (style.style.height - lw * s + 5 * s) / 2}
-                      image={endpointImages[style.data.type]}
-                      width={lw * 1 * s}
-                      height={lw * 1 * s}
-                    />
+                      <Path
+                        x={b3x + 3 * s}
+                        y={style.style.y + 3 * s}
+                        fill="#0072c6"
+                        data={SvgEndpoint}
+                        scale={{
+                          x: 50 / 24 * 0.8 * s,
+                          y: 50 / 26 * 0.8 * s,
+                        }}
+                      />
 
-                    <Text
-                      x={b3x + 20 * s + 35 * s + 20 * s}
-                      y={style.style.y + (style.style.height - tfs * s) / 2}
-                      fontSize={tfs * s}
-                      height={tfs * s}
-                      text={style.data.name.length <= 7 ? style.data.name : style.data.name.substring(0, 7) + '...'}
-                    />
-                  </Group>)}
-                </Group>
+                      <KonvaImage
+                        x={b3x + 20 * s}
+                        y={style.style.y + (style.style.height - lw * s + 5 * s) / 2}
+                        image={endpointImages[style.data.type]}
+                        width={lw * 1 * s}
+                        height={lw * 1 * s}
+                      />
+
+                      <Text
+                        x={b3x + 20 * s + 35 * s + 20 * s}
+                        y={style.style.y + (style.style.height - tfs * s) / 2}
+                        fontSize={tfs * s}
+                        height={tfs * s}
+                        text={style.data.name.length <= 7 ? style.data.name : style.data.name.substring(0, 7) + '...'}
+                      />
+                    </Group>)}
+                  </Group>
+                }
               }
-            }
-          </TransitionMotion>
-          <Motion style={rightLineStyle}>
-            {
-              ({ progress }) =>
-                <Group>
-                  {Array.from(this.state.endpoints.values()).map((d, index) =>
-                    <Line
-                      key={"line" + index}
-                      points={this.getPointsFromProgress(progress, rightLinex1, rightLinex1 + (rightLinex3 - rightLinex1) * 0.2, rightLinex3, liney2, this.getY(b1y, index, this.state.endpoints.size, bh, 10))}
-                      stroke="rgba(0,0,0,0.5)"
-                      shadowColor="rgba(0,0,0,0.5)"
-                      shadowOffsetY={3}
-                      shadowBlur={3}
-                    />
-                  )}
-                </Group>
-            }
-          </Motion>
-          <TransitionMotion
-            // defaultStyles={this.getDefaultNumberStyles(b1y, bh)}
-            styles={this.getStyles(bh, b1y - 5, this.state.endpoints, this.state.rightLineInAnimationProgress, 3)}
-            // willLeave={this.willLeave.bind(null, b1y)}
-            willEnter={this.willEnterNumber.bind(null, ch)}>
-            {
-              (styles) => {
-                return <Group>
-                  {styles.map(style =>
-                    <Group key={style.data.name}>
-                      <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s}
-                        y={style.style.y + (style.style.height - tfs) / 2}
-                        fontSize={t2fs * 0.75}
-                        height={t2fs * 0.75}
-                        scale={sf}
-                        text={`Avg: ${style.data.avg.toFixed(0)} ms`}
-                        onMouseEnter={this.changeCursorToPointer}
-                        onMouseLeave={this.changeCursorToDefault}
-                        onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                          this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), 2, style.data.name)
-                        )) : this.showAllStorageTable.bind(null, 2, style.data.name)}
+            </TransitionMotion>
+            <Motion style={rightLineStyle}>
+              {
+                ({ progress }) =>
+                  <Group>
+                    {Array.from(this.state.endpoints.values()).map((d, index) =>
+                      <Line
+                        key={"line" + index}
+                        points={this.getPointsFromProgress(progress, rightLinex1, rightLinex1 + (rightLinex3 - rightLinex1) * 0.2, rightLinex3, liney2, this.getY(b1y, index, this.state.endpoints.size, bh, 10))}
+                        stroke="rgba(0,0,0,0.5)"
+                        shadowColor="rgba(0,0,0,0.5)"
+                        shadowOffsetY={3}
+                        shadowBlur={3}
                       />
-                      <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 75 * s}
-                        y={style.style.y + (style.style.height - tfs) / 2}
-                        fontSize={t2fs * 0.75}
-                        height={t2fs * 0.75}
-                        scale={sf}
-                        text={`Max: ${style.data.max.toFixed(0)} ms`}
-                        onMouseEnter={ this.changeCursorToPointer}
-                        onMouseLeave={this.changeCursorToDefault}
-                        onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
-                          this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
-                        )):this.showStorageForSingleRecord.bind(null, style.data.maxId)}
-                      />
-                      <Text
-                        x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 150 * s}
-                        y={style.style.y + (style.style.height - tfs) / 2}
-                        fontSize={t2fs * 0.75}
-                        height={t2fs * 0.75}
-                        scale={sf}
-                        text={`Count: ${style.data.messageCount.toFixed(0)}`}
-                      />
-                    </Group>
-                  )}
-                </Group>
+                    )}
+                  </Group>
               }
-            }
-          </TransitionMotion>
+            </Motion>
+            <TransitionMotion
+              // defaultStyles={this.getDefaultNumberStyles(b1y, bh)}
+              styles={this.getStyles(bh, b1y - 5, this.state.endpoints, this.state.rightLineInAnimationProgress, 3)}
+              // willLeave={this.willLeave.bind(null, b1y)}
+              willEnter={this.willEnterNumber.bind(null, ch)}>
+              {
+                (styles) => {
+                  return <Group>
+                    {styles.map(style =>
+                      <Group key={style.data.name}>
+                        <Text
+                          x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s}
+                          y={style.style.y + (style.style.height - tfs) / 2}
+                          fontSize={t2fs * 0.75}
+                          height={t2fs * 0.75}
+                          scale={sf}
+                          text={`Avg: ${style.data.avg.toFixed(0)} ms`}
+                          onMouseEnter={this.changeCursorToPointer}
+                          onMouseLeave={this.changeCursorToDefault}
+                          onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                            this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), 2, style.data.name)
+                          )) : this.showAllStorageTable.bind(null, 2, style.data.name)}
+                        />
+                        <Text
+                          x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 75 * s}
+                          y={style.style.y + (style.style.height - tfs) / 2}
+                          fontSize={t2fs * 0.75}
+                          height={t2fs * 0.75}
+                          scale={sf}
+                          text={`Max: ${style.data.max.toFixed(0)} ms`}
+                          onMouseEnter={this.changeCursorToPointer}
+                          onMouseLeave={this.changeCursorToDefault}
+                          onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                            this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
+                          )) : this.showStorageForSingleRecord.bind(null, style.data.maxId)}
+                        />
+                        <Text
+                          x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 150 * s}
+                          y={style.style.y + (style.style.height - tfs) / 2}
+                          fontSize={t2fs * 0.75}
+                          height={t2fs * 0.75}
+                          scale={sf}
+                          text={`Count: ${style.data.messageCount.toFixed(0)}`}
+                        />
+                      </Group>
+                    )}
+                  </Group>
+                }
+              }
+            </TransitionMotion>
 
-          <Group>
-            <Rect
-              x={btpx}
-              y={btph}
-              width={btpw}
-              height={btph}
-              fill={this.state.spanInMinutes === 20 ? "#e6e6e6" : "#fff"}
-              shadowBlur={2}
-              cornerRadius={2}
-              onMouseEnter={this.changeCursorToPointer}
-              onMouseLeave={this.changeCursorToDefault}
-              onClick={this.changeTimeSpan.bind(null, 20)}
-            />
-            <Text
-              x={btpx + 15}
-              y={btph + 10}
-              fontSize={18}
-              height={18}
-              text={`20 minutes`}
-              onMouseEnter={this.changeCursorToPointer}
-              onMouseLeave={this.changeCursorToDefault}
-              onClick={this.changeTimeSpan.bind(null, 20)}
-            />
+            <Group>
+              <Rect
+                x={btpx}
+                y={btph}
+                width={btpw}
+                height={btph}
+                fill={this.state.spanInMinutes === 20 ? "#e6e6e6" : "#fff"}
+                shadowBlur={2}
+                cornerRadius={2}
+                onMouseEnter={this.changeCursorToPointer}
+                onMouseLeave={this.changeCursorToDefault}
+                onClick={this.changeTimeSpan.bind(null, 20)}
+              />
+              <Text
+                x={btpx + 15}
+                y={btph + 10}
+                fontSize={18}
+                height={18}
+                text={`20 minutes`}
+                onMouseEnter={this.changeCursorToPointer}
+                onMouseLeave={this.changeCursorToDefault}
+                onClick={this.changeTimeSpan.bind(null, 20)}
+              />
 
-            <Rect
-              x={btpx}
-              y={btph + btph + 10}
-              width={btpw}
-              height={btph}
-              fill={this.state.spanInMinutes === 40 ? "#e6e6e6" : "#fff"}
-              shadowBlur={2}
-              cornerRadius={2}
-              onMouseEnter={this.changeCursorToPointer}
-              onMouseLeave={this.changeCursorToDefault}
-              onClick={this.changeTimeSpan.bind(null, 40)}
-            />
-            <Text
-              x={btpx + 15}
-              y={btph + btph + 10 + 10}
-              fontSize={18}
-              height={18}
-              text={`40 minutes`}
-              onMouseEnter={this.changeCursorToPointer}
-              onMouseLeave={this.changeCursorToDefault}
-              onClick={this.changeTimeSpan.bind(null, 40)}
-            />
+              <Rect
+                x={btpx}
+                y={btph + btph + 10}
+                width={btpw}
+                height={btph}
+                fill={this.state.spanInMinutes === 40 ? "#e6e6e6" : "#fff"}
+                shadowBlur={2}
+                cornerRadius={2}
+                onMouseEnter={this.changeCursorToPointer}
+                onMouseLeave={this.changeCursorToDefault}
+                onClick={this.changeTimeSpan.bind(null, 40)}
+              />
+              <Text
+                x={btpx + 15}
+                y={btph + btph + 10 + 10}
+                fontSize={18}
+                height={18}
+                text={`40 minutes`}
+                onMouseEnter={this.changeCursorToPointer}
+                onMouseLeave={this.changeCursorToDefault}
+                onClick={this.changeTimeSpan.bind(null, 40)}
+              />
 
-            <Rect
-              x={btpx}
-              y={btph + btph + 10 + btph + 10}
-              width={btpw}
-              height={btph}
-              fill={this.state.spanInMinutes === 60 ? "#e6e6e6" : "#fff"}
-              shadowBlur={2}
-              cornerRadius={2}
-              onMouseEnter={this.changeCursorToPointer}
-              onMouseLeave={this.changeCursorToDefault}
-              onClick={this.changeTimeSpan.bind(null, 60)}
-            />
-            <Text
-              x={btpx + 15}
-              y={btph + btph + 10 + btph + 10 + 10}
-              fontSize={18}
-              height={18}
-              text={`60 minutes`}
-              onMouseEnter={this.changeCursorToPointer}
-              onMouseLeave={this.changeCursorToDefault}
-              onClick={this.changeTimeSpan.bind(null, 60)}
-            />
-          </Group>
-        </Layer>
-        {this.state.loading && loading}
-        {tooltipLayer}
-      </Stage>
+              <Rect
+                x={btpx}
+                y={btph + btph + 10 + btph + 10}
+                width={btpw}
+                height={btph}
+                fill={this.state.spanInMinutes === 60 ? "#e6e6e6" : "#fff"}
+                shadowBlur={2}
+                cornerRadius={2}
+                onMouseEnter={this.changeCursorToPointer}
+                onMouseLeave={this.changeCursorToDefault}
+                onClick={this.changeTimeSpan.bind(null, 60)}
+              />
+              <Text
+                x={btpx + 15}
+                y={btph + btph + 10 + btph + 10 + 10}
+                fontSize={18}
+                height={18}
+                text={`60 minutes`}
+                onMouseEnter={this.changeCursorToPointer}
+                onMouseLeave={this.changeCursorToDefault}
+                onClick={this.changeTimeSpan.bind(null, 60)}
+              />
+            </Group>
+          </Layer>
+          {this.state.loading && loading}
+          {tooltipLayer}
+        </Stage>
       </div>
     );
   }
