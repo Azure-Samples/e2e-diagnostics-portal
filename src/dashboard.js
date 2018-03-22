@@ -2,7 +2,7 @@
 import './dashboard.scss';
 import gzip from 'gzip-js';
 import { Motion, TransitionMotion, spring, presets } from 'react-motion';
-import { Stage, Layer, Group, Rect, Text, Image as KonvaImage, Path, Line, Arc } from 'react-konva';
+import { Stage, Layer, Group, Rect, Label, Tag, Text, Image as KonvaImage, Path, Line, Arc } from 'react-konva';
 import config from '../config';
 import util from 'util';
 import SvgChip from '../asset/microchip.svg';
@@ -805,7 +805,7 @@ class Dashboard extends Component {
   showTooltip = (event, tipText) => {
     this.setState({
       tooltipX: event.evt.clientX,
-      tooltipY: event.evt.clientY - 25,
+      tooltipY: event.evt.clientY+8,
       tooltipText: tipText,
       showTooltip: true
     });
@@ -1221,18 +1221,32 @@ class Dashboard extends Component {
     </Group>;
 
     let tooltipLayer = <Layer>
-      <Text
+      <Label
         x={this.state.tooltipX}
         y={this.state.tooltipY}
-        text={this.state.tooltipText}
-        fontFamily="Calibri"
-        fontSize={12}
-        padding={5}
-        textFill="yellow"
-        fill="black"
-        alpha={0.75}
-        visible={this.state.showTooltip}
-      />
+        opacity={0.75}
+        visible={this.state.showTooltip}>
+        <Tag
+          fill='black'
+          pointerDirection='up'
+          pointerWidth={10}
+          pointerHeight={10}
+          lineJoin='round'
+          shadowColor='black'
+          shadowBlur={10}
+          shadowOffset={10}
+          shadowOpacity={0.5}
+        />
+        <Text
+          text={this.state.tooltipText}
+          fontFamily="Calibri"
+          fontSize={14}
+          padding={5}
+          textFill="yellow"
+          fill="white"
+          alpha={0.75}
+        />
+      </Label>
     </Layer>;
 
     return (
