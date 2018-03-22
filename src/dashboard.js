@@ -1017,20 +1017,20 @@ class Dashboard extends Component {
                   fontSize={9 * s}
                   height={9 * s}
                   fill="rgba(0,0,0,0.9)"
-                  text={this.state.expand ? style.data.diagnosticDesired + '' : ''}
+                  text={this.state.expand ? style.data.diagnosticDesired + '%' : ''}
                   opacity={style.style.opacity}
                   onMouseEnter={(event) => this.showTooltip(event, "E2E diagnostic sampling rate")}
                   onMouseLeave={this.hideTooltip}
                 />
                 <KonvaImage
-                  x={b1x + 20 * s + 20 * s}
+                  x={b1x + 20 * s + 25 * s}
                   y={style.style.y + 8 * s}
                   image={(this.state.expand && !isNaN(style.data.onlineRatio)) ? this.onlineRatioImage : null}
                   width={10 * s}
                   height={10 * s}
                 />
                 <Text
-                  x={b1x + 20 * s + 32 * s}
+                  x={b1x + 20 * s + 37 * s}
                   y={style.style.y + 8 * s}
                   fontSize={9 * s}
                   height={9 * s}
