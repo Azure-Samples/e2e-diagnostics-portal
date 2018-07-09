@@ -889,9 +889,10 @@ class Dashboard extends Component {
     };
 
     let count = 0;
-    let ingressAvg = Array.from(this.records.values()).reduce((acc, cur) => {
+    let ingressSum = Array.from(this.records.values()).reduce((acc, cur) => {
       return cur.operationName !== 'DiagnosticIoTHubIngress' ? acc : (count++, acc+cur.durationMs);
-    }, 0)/count;
+    }, 0);
+    let ingressAvg = count === 0 ? 0 : ingressSum / count;
 
     let getStorageTableView = () => {
       if (this.state.showStorageTable) {
