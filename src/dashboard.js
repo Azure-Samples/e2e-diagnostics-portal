@@ -194,6 +194,7 @@ class Dashboard extends Component {
       let toggleDeviceMaxId = '';
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
+      let toggleDeviceOperationName = '';
       let p1 = performance.now();
       if (data.source === 'ai') {
         this.setState({
@@ -231,7 +232,8 @@ class Dashboard extends Component {
                 let value = endpoints.get(item.properties.endpointName);
                 if (item.durationMs > value.max) {
                   value.max = item.durationMs;
-                  value.maxId = item.correlationId + item.operationName;
+                  value.maxId = item.correlationId;
+                  value.operationName = item.operationName;
                 }
                 value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
                 value.messageCount++;
@@ -242,7 +244,8 @@ class Dashboard extends Component {
                   type: item.properties.endpointType,
                   avg: item.durationMs,
                   max: item.durationMs,
-                  maxId: item.correlationId + item.operationName,
+                  maxId: item.correlationId,
+                  operationName:item.operationName,
                   messageCount: 1
                 }
                 endpoints.set(item.properties.endpointName, value);
@@ -253,7 +256,8 @@ class Dashboard extends Component {
                 let value = devices.get(item.properties.deviceId);
                 if (item.durationMs > value.max) {
                   value.max = item.durationMs;
-                  value.maxId = item.correlationId + item.operationName;
+                  value.maxId = item.correlationId;
+                  value.operationName = item.operationName;
                 }
                 value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
                 value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
@@ -335,7 +339,7 @@ class Dashboard extends Component {
               value.messageCount = 0;
               endpoints.set(v.properties.endpointName, value);
             } else {
-              if (value.maxId === v.correlationId + v.operationName) {
+              if (value.maxId === v.correlationId) {
                 value.maxId = '';
                 value.max = 0;
                 updateMaxEndpointsMap.set(value.name, true);
@@ -355,7 +359,7 @@ class Dashboard extends Component {
               value.messageCount = 0;
               devices.set(v.properties.deviceId, value);
             } else {
-              if (value.maxId === v.correlationId + v.operationName) {
+              if (value.maxId === v.correlationId) {
                 value.maxId = '';
                 value.max = 0;
                 updateMaxDevicesMap.set(value.name, true);
@@ -386,7 +390,8 @@ class Dashboard extends Component {
             if (v.durationMs > endpoints.get(v.properties.endpointName).max) {
               let ep = endpoints.get(v.properties.endpointName);
               ep.max = v.durationMs;
-              ep.maxId = v.correlationId + v.operationName;
+              ep.maxId = v.correlationId;
+              ep.operationName = v.operationName;
               endpoints.set(v.properties.endpointName, ep);
             }
           }
@@ -396,13 +401,15 @@ class Dashboard extends Component {
             if (v.durationMs > devices.get(v.properties.deviceId).max) {
               let ep = devices.get(v.properties.deviceId);
               ep.max = v.durationMs;
-              ep.maxId = v.correlationId + v.operationName;
+              ep.maxId = v.correlationId;
+              ep.operationName = v.operationName;
               devices.set(v.properties.deviceId, ep);
             }
           }
           if (v.durationMs > toggleDeviceMax) {
             toggleDeviceMax = v.durationMs;
-            toggleDeviceMaxId = v.correlationId + v.operationName;
+            toggleDeviceMaxId = v.correlationId;     
+            toggleDeviceOperationName = v.operationName;
           }
           toggleDeviceCount++;
           toggleDeviceSum += v.durationMs;
@@ -415,6 +422,7 @@ class Dashboard extends Component {
       toggleDevice.messageCount = toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
       toggleDevice.maxId = toggleDeviceMaxId;
+      toggleDevice.operationName = toggleDeviceOperationName;
       toggleDeviceMap.set('All Devices', toggleDevice);
 
       let unmatchedNumber = 0;
@@ -1214,7 +1222,7 @@ class Dashboard extends Component {
                     onMouseLeave={this.changeCursorToDefault}
                     onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                       this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
-                    )) : this.showStorageForSingleRecord.bind(null, style.data.maxId)}
+                    )) : this.showStorageForSingleRecord.bind(null, style.data.maxId + style.data.operationName)}
                   />
                   <Text
                     x={leftLinex1 + 10 * s + 150 * s}
@@ -1449,7 +1457,7 @@ class Dashboard extends Component {
                           onMouseLeave={this.changeCursorToDefault}
                           onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                             this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
-                          )) : this.showStorageForSingleRecord.bind(null, style.data.maxId)}
+                          )) : this.showStorageForSingleRecord.bind(null, style.data.maxId + style.data.operationName)}
                         />
                         <Text
                           x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 150 * s}
