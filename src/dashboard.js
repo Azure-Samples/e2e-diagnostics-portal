@@ -206,7 +206,7 @@ class Dashboard extends Component {
           item.properties = JSON.parse(item.properties);
           records.set(item.time + item.properties.deviceId + item.operationName, item);
         } else if (item.operationName === 'DiagnosticIoTHubEgress' || item.operationName === 'DiagnosticIoTHubD2C' || item.operationName === 'DiagnosticIoTHubIngress') {
-          if (!records.has(item.correlationId)) {
+          if (!records.has(item.correlationId + item.operationName)) {
             if (!this.state.iotHubName && item.resourceId) {
               let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
               if (matches && matches[1]) {
@@ -224,14 +224,14 @@ class Dashboard extends Component {
               continue;
             }
             item.properties.messageSize = parseFloat(item.properties.messageSize);
-            records.set(item.correlationId, item);
+            records.set(item.correlationId + item.operationName, item);
 
             if (item.operationName === 'DiagnosticIoTHubEgress') {
               if (endpoints.has(item.properties.endpointName)) {
                 let value = endpoints.get(item.properties.endpointName);
                 if (item.durationMs > value.max) {
                   value.max = item.durationMs;
-                  value.maxId = item.correlationId;
+                  value.maxId = item.correlationId + item.operationName;
                 }
                 value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
                 value.messageCount++;
@@ -242,7 +242,7 @@ class Dashboard extends Component {
                   type: item.properties.endpointType,
                   avg: item.durationMs,
                   max: item.durationMs,
-                  maxId: item.correlationId,
+                  maxId: item.correlationId + item.operationName,
                   messageCount: 1
                 }
                 endpoints.set(item.properties.endpointName, value);
@@ -253,7 +253,7 @@ class Dashboard extends Component {
                 let value = devices.get(item.properties.deviceId);
                 if (item.durationMs > value.max) {
                   value.max = item.durationMs;
-                  value.maxId = item.correlationId;
+                  value.maxId = item.correlationId + item.operationName;
                 }
                 value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
                 value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
@@ -335,7 +335,7 @@ class Dashboard extends Component {
               value.messageCount = 0;
               endpoints.set(v.properties.endpointName, value);
             } else {
-              if (value.maxId === v.correlationId) {
+              if (value.maxId === v.correlationId + v.operationName) {
                 value.maxId = '';
                 value.max = 0;
                 updateMaxEndpointsMap.set(value.name, true);
@@ -355,7 +355,7 @@ class Dashboard extends Component {
               value.messageCount = 0;
               devices.set(v.properties.deviceId, value);
             } else {
-              if (value.maxId === v.correlationId) {
+              if (value.maxId === v.correlationId + v.operationName) {
                 value.maxId = '';
                 value.max = 0;
                 updateMaxDevicesMap.set(value.name, true);
@@ -386,7 +386,7 @@ class Dashboard extends Component {
             if (v.durationMs > endpoints.get(v.properties.endpointName).max) {
               let ep = endpoints.get(v.properties.endpointName);
               ep.max = v.durationMs;
-              ep.maxId = v.correlationId;
+              ep.maxId = v.correlationId + v.operationName;
               endpoints.set(v.properties.endpointName, ep);
             }
           }
@@ -396,13 +396,13 @@ class Dashboard extends Component {
             if (v.durationMs > devices.get(v.properties.deviceId).max) {
               let ep = devices.get(v.properties.deviceId);
               ep.max = v.durationMs;
-              ep.maxId = v.correlationId;
+              ep.maxId = v.correlationId + v.operationName;
               devices.set(v.properties.deviceId, ep);
             }
           }
           if (v.durationMs > toggleDeviceMax) {
             toggleDeviceMax = v.durationMs;
-            toggleDeviceMaxId = v.correlationId;
+            toggleDeviceMaxId = v.correlationId + v.operationName;
           }
           toggleDeviceCount++;
           toggleDeviceSum += v.durationMs;
@@ -702,7 +702,7 @@ class Dashboard extends Component {
     window.open(link);
   }
 
-  // type 0 all devices, 1 one device, 2 endpoint
+  // type 0 all devices, 1 one device, 2 endpoint, 3 Ingress
   showAllStorageTable = (type, id) => {
     var table = [];
     this.records.forEach((value, key) => {
@@ -715,6 +715,10 @@ class Dashboard extends Component {
       else if (type === 2 && value.operationName === 'DiagnosticIoTHubEgress') {
         table.push(value);
       }
+      else if(type === 3 && value.operationName === 'DiagnosticIoTHubIngress')
+      {
+        table.push(value);
+      }
     })
     this.setState({
       storageTable: table
@@ -722,10 +726,10 @@ class Dashboard extends Component {
     this.showTable();
   }
 
-  showStorageForSingleRecord = (correlationId) => {
-    if (correlationId && correlationId.length > 0) {
+  showStorageForSingleRecord = (id) => {
+    if (id && id.length > 0) {
       this.setState({
-        storageTable: [this.records.get(correlationId)]
+        storageTable: [this.records.get(id)]
       });
     }
     this.showTable();
@@ -1322,7 +1326,7 @@ class Dashboard extends Component {
                 fontSize={t2fs * 1.1 * s}
                 height={t2fs * 1.1 * s}
                 fill={"rgba(0, 0, 0, 0.65)"}
-                text={`Average latency: ${ingressAvg.toFixed(0)} ms`}
+                text={`Average latency: ${isNaN(ingressAvg) ? '0': ingressAvg.toFixed(0)} ms`}
                 onMouseEnter={(event) => {
                   this.changeCursorToPointer();
                 }
@@ -1332,7 +1336,9 @@ class Dashboard extends Component {
                 }}
                 onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                   this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), 3)
-                )) : ()=>{}}
+                )) : ()=>{
+                  this.showAllStorageTable(3);
+                }}
               />
             </Group>
 
