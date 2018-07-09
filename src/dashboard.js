@@ -194,6 +194,7 @@ class Dashboard extends Component {
       let toggleDeviceMaxId = '';
       let toggleDeviceSum = 0;
       let toggleDeviceSumSize = 0;
+      let toggleDeviceOperationName = '';
       let p1 = performance.now();
       if (data.source === 'ai') {
         this.setState({
@@ -205,8 +206,8 @@ class Dashboard extends Component {
           this.processDeviceConnStatus(item);
           item.properties = JSON.parse(item.properties);
           records.set(item.time + item.properties.deviceId + item.operationName, item);
-        } else if (item.operationName === 'DiagnosticIoTHubRouting' || item.operationName === 'DiagnosticIoTHubIngress') {
-          if (!records.has(item.correlationId)) {
+        } else if (item.operationName === 'DiagnosticIoTHubEgress' || item.operationName === 'DiagnosticIoTHubD2C' || item.operationName === 'DiagnosticIoTHubIngress') {
+          if (!records.has(item.correlationId + item.operationName)) {
             if (!this.state.iotHubName && item.resourceId) {
               let matches = item.resourceId.match(/IOTHUBS\/(.*)/);
               if (matches && matches[1]) {
@@ -224,14 +225,15 @@ class Dashboard extends Component {
               continue;
             }
             item.properties.messageSize = parseFloat(item.properties.messageSize);
-            records.set(item.correlationId, item);
+            records.set(item.correlationId + item.operationName, item);
 
-            if (item.operationName === 'DiagnosticIoTHubRouting') {
+            if (item.operationName === 'DiagnosticIoTHubEgress') {
               if (endpoints.has(item.properties.endpointName)) {
                 let value = endpoints.get(item.properties.endpointName);
                 if (item.durationMs > value.max) {
                   value.max = item.durationMs;
                   value.maxId = item.correlationId;
+                  value.operationName = item.operationName;
                 }
                 value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
                 value.messageCount++;
@@ -243,17 +245,19 @@ class Dashboard extends Component {
                   avg: item.durationMs,
                   max: item.durationMs,
                   maxId: item.correlationId,
+                  operationName:item.operationName,
                   messageCount: 1
                 }
                 endpoints.set(item.properties.endpointName, value);
               }
               unmatched.set(correlationPrefix, false);
-            } else if (item.operationName === 'DiagnosticIoTHubIngress') {
+            } else if (item.operationName === 'DiagnosticIoTHubD2C') {
               if (devices.has(item.properties.deviceId)) {
                 let value = devices.get(item.properties.deviceId);
                 if (item.durationMs > value.max) {
                   value.max = item.durationMs;
                   value.maxId = item.correlationId;
+                  value.operationName = item.operationName;
                 }
                 value.avg = (value.avg * value.messageCount + item.durationMs) / (value.messageCount + 1);
                 value.avgSize = (value.avgSize * value.messageCount + item.properties.messageSize) / (value.messageCount + 1);
@@ -324,7 +328,7 @@ class Dashboard extends Component {
           let correlationPrefix = v.correlationId.substring(8, 16);
           unmatched.delete(correlationPrefix);
           recordKeysToDelete.push(k);
-          if (v.operationName === 'DiagnosticIoTHubRouting') {
+          if (v.operationName === 'DiagnosticIoTHubEgress') {
             let value = endpoints.get(v.properties.endpointName);
             if (value == undefined) {
               // console.error('[E2E] Endpoint: ' + v.properties.endpointName + ' is undefined');
@@ -344,7 +348,7 @@ class Dashboard extends Component {
               value.messageCount--;
               endpoints.set(v.properties.endpointName, value);
             }
-          } else if (v.operationName === 'DiagnosticIoTHubIngress') {
+          } else if (v.operationName === 'DiagnosticIoTHubD2C') {
             let value = devices.get(v.properties.deviceId);
             if (value == undefined) {
               // console.error('[E2E] Device: ' + v.properties.deviceId + ' is undefined');
@@ -364,6 +368,8 @@ class Dashboard extends Component {
               value.messageCount--;
               devices.set(v.properties.deviceId, value);
             }
+          } else if(v.operationName === 'DiagnosticIoTHubIngress') {
+            records.delete(k);
           }
         }
       }
@@ -379,28 +385,31 @@ class Dashboard extends Component {
       }
 
       for (let [k, v] of records) {
-        if (v.operationName === 'DiagnosticIoTHubRouting') {
+        if (v.operationName === 'DiagnosticIoTHubEgress') {
           if (updateMaxEndpointsMap.has(v.properties.endpointName) && endpoints.has(v.properties.endpointName)) {
             if (v.durationMs > endpoints.get(v.properties.endpointName).max) {
               let ep = endpoints.get(v.properties.endpointName);
               ep.max = v.durationMs;
               ep.maxId = v.correlationId;
+              ep.operationName = v.operationName;
               endpoints.set(v.properties.endpointName, ep);
             }
           }
         }
-        else if (v.operationName === 'DiagnosticIoTHubIngress') {
+        else if (v.operationName === 'DiagnosticIoTHubD2C') {
           if (updateMaxDevicesMap.has(v.properties.deviceId) && devices.has(v.properties.deviceId)) {
             if (v.durationMs > devices.get(v.properties.deviceId).max) {
               let ep = devices.get(v.properties.deviceId);
               ep.max = v.durationMs;
               ep.maxId = v.correlationId;
+              ep.operationName = v.operationName;
               devices.set(v.properties.deviceId, ep);
             }
           }
           if (v.durationMs > toggleDeviceMax) {
             toggleDeviceMax = v.durationMs;
-            toggleDeviceMaxId = v.correlationId;
+            toggleDeviceMaxId = v.correlationId;     
+            toggleDeviceOperationName = v.operationName;
           }
           toggleDeviceCount++;
           toggleDeviceSum += v.durationMs;
@@ -413,6 +422,7 @@ class Dashboard extends Component {
       toggleDevice.messageCount = toggleDeviceCount;
       toggleDevice.max = toggleDeviceMax;
       toggleDevice.maxId = toggleDeviceMaxId;
+      toggleDevice.operationName = toggleDeviceOperationName;
       toggleDeviceMap.set('All Devices', toggleDevice);
 
       let unmatchedNumber = 0;
@@ -680,6 +690,8 @@ class Dashboard extends Component {
       condition = `'"deviceId":"${id}"'`;
     } else if (type === 2) {
       condition = `'"endpointName":"${id}"'`;
+    } else if (type === 3) {
+      return `customEvents | where timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('${start.toISOString()}') and todatetime(tostring(customDimensions['time'])) <= datetime('${end.toISOString()}') and tostring(customDimensions['operationName']) == 'DiagnosticIoTHubIngress'`;
     }
 
     return `customEvents | where timestamp >= ago(7d) and todatetime(tostring(customDimensions['time'])) >= datetime('${start.toISOString()}') and todatetime(tostring(customDimensions['time'])) <= datetime('${end.toISOString()}') and customDimensions.properties contains ${condition} and tostring(customDimensions['operationName']) contains 'Diagnostic'`;
@@ -698,17 +710,21 @@ class Dashboard extends Component {
     window.open(link);
   }
 
-  // type 0 all devices, 1 one device, 2 endpoint
+  // type 0 all devices, 1 one device, 2 endpoint, 3 Ingress
   showAllStorageTable = (type, id) => {
     var table = [];
     this.records.forEach((value, key) => {
-      if (type === 0 && value.operationName === 'DiagnosticIoTHubIngress') {
+      if (type === 0 && value.operationName === 'DiagnosticIoTHubD2C') {
         table.push(value);
       }
-      else if (type === 1 && value.operationName === 'DiagnosticIoTHubIngress' && value.properties.deviceId === id) {
+      else if (type === 1 && value.operationName === 'DiagnosticIoTHubD2C' && value.properties.deviceId === id) {
         table.push(value);
       }
-      else if (type === 2 && value.operationName === 'DiagnosticIoTHubRouting') {
+      else if (type === 2 && value.operationName === 'DiagnosticIoTHubEgress') {
+        table.push(value);
+      }
+      else if(type === 3 && value.operationName === 'DiagnosticIoTHubIngress')
+      {
         table.push(value);
       }
     })
@@ -718,10 +734,10 @@ class Dashboard extends Component {
     this.showTable();
   }
 
-  showStorageForSingleRecord = (correlationId) => {
-    if (correlationId && correlationId.length > 0) {
+  showStorageForSingleRecord = (id) => {
+    if (id && id.length > 0) {
       this.setState({
-        storageTable: [this.records.get(correlationId)]
+        storageTable: [this.records.get(id)]
       });
     }
     this.showTable();
@@ -871,6 +887,12 @@ class Dashboard extends Component {
     let rightLineStyle = {
       progress: this.state.rightLineInAnimationProgress >= 2 ? spring(100, { stiffness: 60, damping: 15 }) : 0
     };
+
+    let count = 0;
+    let ingressSum = Array.from(this.records.values()).reduce((acc, cur) => {
+      return cur.operationName !== 'DiagnosticIoTHubIngress' ? acc : (count++, acc+cur.durationMs);
+    }, 0);
+    let ingressAvg = count === 0 ? 0 : ingressSum / count;
 
     let getStorageTableView = () => {
       if (this.state.showStorageTable) {
@@ -1201,7 +1223,7 @@ class Dashboard extends Component {
                     onMouseLeave={this.changeCursorToDefault}
                     onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                       this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
-                    )) : this.showStorageForSingleRecord.bind(null, style.data.maxId)}
+                    )) : this.showStorageForSingleRecord.bind(null, style.data.maxId + style.data.operationName)}
                   />
                   <Text
                     x={leftLinex1 + 10 * s + 150 * s}
@@ -1305,6 +1327,27 @@ class Dashboard extends Component {
                 height={t2fs * 1.1 * s}
                 fill={"rgba(0, 0, 0, 0.65)"}
                 text={"Unmatched messages: " + this.state.unmatchedNumber}
+              />
+
+              <Text
+                x={b2x + 20 * s}
+                y={b1y - b2h * 1.7 / 2 + b2h + t2fs * 1.1 * 3 * s + 15 * s}
+                fontSize={t2fs * 1.1 * s}
+                height={t2fs * 1.1 * s}
+                fill={"rgba(0, 0, 0, 0.65)"}
+                text={`Average latency: ${isNaN(ingressAvg) ? '0': ingressAvg.toFixed(0)} ms`}
+                onMouseEnter={(event) => {
+                  this.changeCursorToPointer();
+                }
+                }
+                onMouseLeave={() => {
+                  this.changeCursorToDefault();
+                }}
+                onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
+                  this.getKustoStatementForAvg(...this.getCurrentTimeWindow(), 3)
+                )) : ()=>{
+                  this.showAllStorageTable(3);
+                }}
               />
             </Group>
 
@@ -1415,7 +1458,7 @@ class Dashboard extends Component {
                           onMouseLeave={this.changeCursorToDefault}
                           onClick={this.state.sourceAI ? this.openLinkInNewPage.bind(null, this.encodeKustoQuery(
                             this.getKustoStatementForSingleRecord(...this.getCurrentTimeWindow(), style.data.maxId)
-                          )) : this.showStorageForSingleRecord.bind(null, style.data.maxId)}
+                          )) : this.showStorageForSingleRecord.bind(null, style.data.maxId + style.data.operationName)}
                         />
                         <Text
                           x={rightLinex1 + (rightLinex3 - rightLinex1) * 0.2 + 10 * s + 150 * s}
