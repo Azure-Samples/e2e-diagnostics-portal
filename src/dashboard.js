@@ -1282,7 +1282,7 @@ class Dashboard extends Component {
                 x={b2x}
                 y={b1y - b2h * 1.7 / 2}
                 width={bw}
-                height={b2h * 1.7}
+                height={b2h * 1.7 + t2fs * 1.1 * s}
                 fill={"#fff"}
                 shadowBlur={5}
                 cornerRadius={5}
