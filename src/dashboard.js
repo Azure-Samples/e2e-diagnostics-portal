@@ -216,7 +216,7 @@ class Dashboard extends Component {
                 });
               }
             }
-            let correlationPrefix = item.correlationId.substring(8, 16);
+            let correlationPrefix = item.correlationId.substring(3, 35);
             item.durationMs = parseFloat(item.durationMs);
             item.time = new Date(item.time);
             try {
@@ -325,7 +325,7 @@ class Dashboard extends Component {
 
       for (let [k, v] of records) {
         if (v.time < start || v.time > end) {
-          let correlationPrefix = v.correlationId.substring(8, 16);
+          let correlationPrefix = v.correlationId.substring(3, 35);
           unmatched.delete(correlationPrefix);
           recordKeysToDelete.push(k);
           if (v.operationName === 'DiagnosticIoTHubEgress') {
